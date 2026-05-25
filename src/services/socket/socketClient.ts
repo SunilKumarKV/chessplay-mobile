@@ -4,9 +4,24 @@ import { useGameStore } from "@/store/gameStore";
 import type { LiveRoom, RoomChatMessage, SocketGameState } from "@/types/chess";
 
 let socket: Socket | null = null;
+let activeAccessToken: string | null = null;
 
 export function getSocket(accessToken: string) {
-  if (socket?.connected) return socket;
+  if (!SOCKET_URL) {
+    useGameStore.getState().setConnectionStatus("error");
+    useGameStore.getState().setLastServerError("Socket URL is not configured. Set EXPO_PUBLIC_SOCKET_URL before live play.");
+    return null;
+  }
+
+  if (socket?.connected && activeAccessToken === accessToken) return socket;
+
+  if (socket) {
+    socket.removeAllListeners();
+    socket.disconnect();
+    socket = null;
+  }
+
+  activeAccessToken = accessToken;
 
   socket = io(SOCKET_URL, {
     transports: ["websocket", "polling"],
@@ -63,8 +78,10 @@ export function getSocket(accessToken: string) {
 }
 
 export function disconnectSocket() {
+  socket?.removeAllListeners();
   socket?.disconnect();
   socket = null;
+  activeAccessToken = null;
   useGameStore.getState().setConnectionStatus("idle");
 }
 

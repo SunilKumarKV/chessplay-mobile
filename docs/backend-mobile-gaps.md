@@ -6,6 +6,8 @@ These items should be implemented in the backend before the mobile app is consid
 
 The backend refresh flow depends on HttpOnly browser cookies. Native mobile needs a documented refresh token strategy that works outside browser cookie storage, ideally with refresh token rotation and device/session revocation.
 
+The backend also returns a signed access JWT in a response field named `socketToken`. Mobile can use it for HTTP bearer auth because it is accepted by the backend access-token middleware, but the backend should expose an explicit `accessToken` field to avoid client confusion.
+
 ## Push Notifications
 
 No mobile push registration or notification feed endpoints were found. Needed endpoints:
@@ -39,4 +41,3 @@ Until then, mobile only provides local move validation for the AI screen foundat
 ## Paginated Room Discovery
 
 The `getRooms` socket event returns an in-memory room list. Mobile needs paginated/filterable room discovery for production-scale room browsing and spectating.
-

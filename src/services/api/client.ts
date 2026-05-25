@@ -41,6 +41,9 @@ async function parseJson(response: Response) {
 }
 
 function urlFor(endpoint: string) {
+  if (!API_URL) {
+    throw new ApiError("API URL is not configured. Set EXPO_PUBLIC_API_URL before using backend features.", 0, {});
+  }
   const normalized = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   return `${API_URL}${normalized}`;
 }

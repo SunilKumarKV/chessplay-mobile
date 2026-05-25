@@ -26,7 +26,7 @@ Reference source: local read-only checkout at `../chessPlay`.
 - `POST /api/auth/forgot-password` exists. Mobile deep-link reset completion still needs app-link handling.
 - `POST /api/auth/reset-password` exists, but the current mobile app only exposes the request screen.
 
-Mobile stores the returned `socketToken` in SecureStore and sends it as `Authorization: Bearer <token>` for HTTP plus `handshake.auth.accessToken` for Socket.IO.
+The backend currently returns a signed access JWT in a field named `socketToken`. Mobile stores that token in SecureStore and sends it as `Authorization: Bearer <token>` for HTTP plus `handshake.auth.accessToken` for Socket.IO because the backend signs it with the access-token signer. This naming should be cleaned up when mobile refresh tokens are added.
 
 ## Backend API Endpoints Used In Mobile
 
@@ -43,6 +43,9 @@ Mobile stores the returned `socketToken` in SecureStore and sends it as `Authori
 - `GET /games/leaderboard`
 - `GET /games/:gameId`
 - `GET /auth/friends`
+- `GET /auth/users/search`
+- `POST /auth/friends/request`
+- `POST /auth/friends/respond`
 - `GET /messages/conversations`
 - `GET /messages/users/search`
 - `POST /messages/conversations`

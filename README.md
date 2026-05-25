@@ -26,8 +26,8 @@ cp .env.example .env
 Set local `.env` values:
 
 ```bash
-EXPO_PUBLIC_API_URL=https://chessplay-b5ve.onrender.com/api
-EXPO_PUBLIC_SOCKET_URL=https://chessplay-b5ve.onrender.com
+EXPO_PUBLIC_API_URL=https://api.getchessplay.com/api
+EXPO_PUBLIC_SOCKET_URL=https://api.getchessplay.com
 ```
 
 Then validate:
@@ -38,6 +38,8 @@ npm run lint
 ```
 
 `.env.example` intentionally ships with blank values so local and CI environments must choose their target explicitly. Do not use localhost for production builds.
+
+Use `https://api.getchessplay.com/api` and `https://api.getchessplay.com` for production. The legacy Render URL is only a temporary staging target.
 
 ## Expo Go Testing
 
@@ -102,8 +104,8 @@ npm install -g eas-cli
 Configure the real production environment in your shell or EAS environment:
 
 ```bash
-export EXPO_PUBLIC_API_URL=https://chessplay-b5ve.onrender.com/api
-export EXPO_PUBLIC_SOCKET_URL=https://chessplay-b5ve.onrender.com
+export EXPO_PUBLIC_API_URL=https://api.getchessplay.com/api
+export EXPO_PUBLIC_SOCKET_URL=https://api.getchessplay.com
 ```
 
 Replace placeholder assets in `assets/` before store submission:
@@ -142,8 +144,8 @@ The production Android profile emits an `.aab`.
 An Apple Developer account is required.
 
 ```bash
-export EXPO_PUBLIC_API_URL=https://chessplay-b5ve.onrender.com/api
-export EXPO_PUBLIC_SOCKET_URL=https://chessplay-b5ve.onrender.com
+export EXPO_PUBLIC_API_URL=https://api.getchessplay.com/api
+export EXPO_PUBLIC_SOCKET_URL=https://api.getchessplay.com
 npx eas init
 npx eas build -p ios --profile production
 ```
