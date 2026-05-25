@@ -45,8 +45,12 @@ export type LeaderboardPlayer = {
 };
 
 export type MoveRecord = {
-  from: string;
-  to: string;
+  from: string | { row: number; col: number; fromRow?: number; fromCol?: number };
+  to: string | { row: number; col: number; toRow?: number; toCol?: number };
+  fromRow?: number;
+  fromCol?: number;
+  toRow?: number;
+  toCol?: number;
   piece?: string;
   promotion?: string;
   timestamp?: string;

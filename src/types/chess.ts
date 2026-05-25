@@ -5,6 +5,7 @@ export type PlayerColor = "w" | "b";
 export type GameStatus =
   | "waiting"
   | "active"
+  | "playing"
   | "check"
   | "checkmate"
   | "stalemate"
@@ -18,7 +19,22 @@ export type SocketGameState = {
   fen?: string;
   turn?: PlayerColor;
   status?: GameStatus;
-  moves?: { from: string; to: string; piece?: string }[];
+  castling?: {
+    w?: { kingSide?: boolean; queenSide?: boolean };
+    b?: { kingSide?: boolean; queenSide?: boolean };
+  };
+  enPassant?: [number, number] | null;
+  halfmoveClock?: number;
+  moves?: {
+    from?: string | { row: number; col: number; fromRow?: number; fromCol?: number };
+    to?: string | { row: number; col: number; toRow?: number; toCol?: number };
+    fromRow?: number;
+    fromCol?: number;
+    toRow?: number;
+    toCol?: number;
+    piece?: string;
+    promotion?: string;
+  }[];
   players?: {
     w: { id?: string; name?: string; userId?: string; disconnected?: boolean };
     b: { id?: string; name?: string; userId?: string; disconnected?: boolean };

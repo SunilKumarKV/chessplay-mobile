@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import { Chess } from "chess.js";
 import { Alert } from "react-native";
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
@@ -36,6 +37,10 @@ export default function LiveGameScreen() {
   const orientation = liveRoom.color === "w" ? "white" : "black";
   const gameOver = ["checkmate", "stalemate", "draw", "resigned", "draw-50move", "draw-repetition"].includes(liveRoom.gameState.status || "");
 
+  function showMoveError(message: string) {
+    Alert.alert("Move not allowed", message);
+  }
+
   function leave() {
     emitSocket("leaveRoom");
     setLiveRoom(null);
@@ -63,8 +68,20 @@ export default function LiveGameScreen() {
       <ChessBoard
         fen={fen}
         orientation={orientation}
+        allowedColor={liveRoom.color}
         disabled={gameOver}
+        onInvalidSelection={showMoveError}
         onMove={(from, to, promotion) => {
+          const chess = new Chess(fen);
+          if (chess.turn() !== liveRoom.color) {
+            showMoveError("Wait for your opponent to move.");
+            return;
+          }
+          const candidate = chess.moves({ square: from, verbose: true }).find((move) => move.to === to && (!move.promotion || move.promotion === promotion));
+          if (!candidate) {
+            showMoveError("That move is not legal in the current position.");
+            return;
+          }
           const fromBackend = squareToBackend(from);
           const toBackend = squareToBackend(to);
           emitSocket("makeMove", {

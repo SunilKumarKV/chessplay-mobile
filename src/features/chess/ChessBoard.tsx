@@ -25,8 +25,10 @@ const pieceSymbols: Record<string, string> = {
 type Props = {
   fen: string;
   orientation?: "white" | "black";
+  allowedColor?: "w" | "b" | "both";
   disabled?: boolean;
   onMove?: (from: ChessSquare, to: ChessSquare, promotion?: string) => void;
+  onInvalidSelection?: (message: string) => void;
 };
 
 function squareAt(row: number, col: number, orientation: "white" | "black") {
@@ -35,7 +37,7 @@ function squareAt(row: number, col: number, orientation: "white" | "black") {
   return `${file}${rank}` as ChessSquare;
 }
 
-export function ChessBoard({ fen, orientation = "white", disabled, onMove }: Props) {
+export function ChessBoard({ fen, orientation = "white", allowedColor = "both", disabled, onMove, onInvalidSelection }: Props) {
   const colors = useThemeColors();
   const { width } = useWindowDimensions();
   const size = Math.min(width - 40, 420);
@@ -48,6 +50,13 @@ export function ChessBoard({ fen, orientation = "white", disabled, onMove }: Pro
     if (!selected) return new Set<string>();
     return new Set(chess.moves({ square: selected, verbose: true }).map((move) => move.to));
   }, [chess, selected]);
+
+  function canSelectPiece(square: ChessSquare) {
+    const piece = chess.get(square);
+    if (!piece) return false;
+    if (allowedColor !== "both" && piece.color !== allowedColor) return false;
+    return piece.color === chess.turn();
+  }
 
   function handlePress(square: ChessSquare) {
     if (disabled) return;
@@ -63,8 +72,21 @@ export function ChessBoard({ fen, orientation = "white", disabled, onMove }: Pro
       setSelected(null);
       return;
     }
-    if (piece?.color === chess.turn()) setSelected(square);
-    else setSelected(null);
+    if (selected && selected !== square && !canSelectPiece(square)) {
+      onInvalidSelection?.("That move is not legal in the current position.");
+      setSelected(null);
+      return;
+    }
+    if (canSelectPiece(square)) {
+      setSelected(square);
+      return;
+    }
+    if (piece && allowedColor !== "both" && piece.color !== allowedColor) {
+      onInvalidSelection?.("You can only move your own pieces.");
+    } else if (piece && piece.color !== chess.turn()) {
+      onInvalidSelection?.("It is not that side's turn.");
+    }
+    setSelected(null);
   }
 
   return (

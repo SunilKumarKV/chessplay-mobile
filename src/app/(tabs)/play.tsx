@@ -63,6 +63,7 @@ export default function PlayScreen() {
         <TimerBar />
         <ChessBoard
           fen={localChess.fen()}
+          allowedColor="both"
           onMove={(from, to, promotion) => {
             const next = new Chess(localChess.fen());
             const move = next.move({ from, to, promotion });
