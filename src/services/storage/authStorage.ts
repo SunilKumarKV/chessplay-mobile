@@ -1,0 +1,46 @@
+import * as SecureStore from "expo-secure-store";
+
+const ACCESS_TOKEN_KEY = "chessplay.accessToken";
+const SOCKET_TOKEN_KEY = "chessplay.socketToken";
+const USER_KEY = "chessplay.user";
+const ONBOARDED_KEY = "chessplay.hasOnboarded";
+
+export async function saveAuthSession(input: {
+  accessToken?: string | null;
+  socketToken?: string | null;
+  user?: unknown;
+}) {
+  const accessToken = input.accessToken || input.socketToken || null;
+  const socketToken = input.socketToken || input.accessToken || null;
+  if (accessToken) await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken);
+  if (socketToken) await SecureStore.setItemAsync(SOCKET_TOKEN_KEY, socketToken);
+  if (input.user) await SecureStore.setItemAsync(USER_KEY, JSON.stringify(input.user));
+}
+
+export async function readAuthSession() {
+  const [accessToken, socketToken, userJson, hasOnboarded] = await Promise.all([
+    SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
+    SecureStore.getItemAsync(SOCKET_TOKEN_KEY),
+    SecureStore.getItemAsync(USER_KEY),
+    SecureStore.getItemAsync(ONBOARDED_KEY)
+  ]);
+  return {
+    accessToken,
+    socketToken,
+    user: userJson ? JSON.parse(userJson) : null,
+    hasOnboarded: hasOnboarded === "true"
+  };
+}
+
+export async function clearAuthSession() {
+  await Promise.all([
+    SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
+    SecureStore.deleteItemAsync(SOCKET_TOKEN_KEY),
+    SecureStore.deleteItemAsync(USER_KEY)
+  ]);
+}
+
+export async function saveOnboarded(value = true) {
+  await SecureStore.setItemAsync(ONBOARDED_KEY, String(value));
+}
+
