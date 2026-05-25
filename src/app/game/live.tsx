@@ -36,6 +36,7 @@ export default function LiveGameScreen() {
   const fen = fenFromSocketGame(liveRoom.gameState);
   const orientation = liveRoom.color === "w" ? "white" : "black";
   const gameOver = ["checkmate", "stalemate", "draw", "resigned", "draw-50move", "draw-repetition"].includes(liveRoom.gameState.status || "");
+  const moveHistory = liveRoom.gameState.moveHistory || liveRoom.gameState.moves || [];
 
   function showMoveError(message: string) {
     Alert.alert("Move not allowed", message);
@@ -73,6 +74,11 @@ export default function LiveGameScreen() {
         onInvalidSelection={showMoveError}
         onMove={(from, to, promotion) => {
           const chess = new Chess(fen);
+          const selectedPiece = chess.get(from);
+          if (!selectedPiece || selectedPiece.color !== liveRoom.color) {
+            showMoveError("You can only move your own pieces.");
+            return;
+          }
           if (chess.turn() !== liveRoom.color) {
             showMoveError("Wait for your opponent to move.");
             return;
@@ -94,9 +100,9 @@ export default function LiveGameScreen() {
         }}
       />
       <Card>
-        <AppText variant="subtitle">{liveRoom.gameState.status || describeGameStatus(fen)}</AppText>
+        <AppText variant="subtitle">{describeGameStatus(fen, liveRoom.gameState)}</AppText>
         <AppText muted>You are playing {liveRoom.color === "w" ? "white" : "black"}.</AppText>
-        <MoveHistoryPanel moves={liveRoom.gameState.moves} />
+        <MoveHistoryPanel moves={moveHistory} />
         {gameOver ? <Button label="View result" onPress={() => router.push("/game/result")} /> : null}
       </Card>
       <LiveRoomChat />

@@ -58,8 +58,8 @@ export default function PlayScreen() {
     <Screen>
       <AppText variant="title">Play</AppText>
       <Card>
-        <AppText variant="subtitle">Play vs AI</AppText>
-        <AppText muted>Local validation is ready. Full Stockfish parity is pending a mobile worker strategy.</AppText>
+        <AppText variant="subtitle">Local practice</AppText>
+        <AppText muted>Practice legal moves locally. AI/Stockfish is not connected in this build.</AppText>
         <TimerBar />
         <ChessBoard
           fen={localChess.fen()}

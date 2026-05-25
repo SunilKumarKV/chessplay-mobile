@@ -45,15 +45,17 @@ export type LeaderboardPlayer = {
 };
 
 export type MoveRecord = {
-  from: string | { row: number; col: number; fromRow?: number; fromCol?: number };
-  to: string | { row: number; col: number; toRow?: number; toCol?: number };
+  from: string | [number, number] | { row: number; col: number; fromRow?: number; fromCol?: number };
+  to: string | [number, number] | { row: number; col: number; toRow?: number; toCol?: number };
   fromRow?: number;
   fromCol?: number;
   toRow?: number;
   toCol?: number;
   piece?: string;
+  text?: string;
+  captured?: string | null;
   promotion?: string;
-  timestamp?: string;
+  timestamp?: string | number;
 };
 
 export type GameHistoryItem = {

@@ -76,7 +76,7 @@ npx eas build -p ios --profile development
 - JWT/session token storage with SecureStore
 - Auth-guarded app routes
 - Home dashboard
-- Local chess board for Play vs AI foundation
+- Local practice chess board for legal-move validation
 - Online matchmaking, create room, join room
 - Live chess board with touch selection, legal move highlights, move history, draw offer, resign
 - Promotion picker for pawn promotion
