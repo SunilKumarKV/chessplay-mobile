@@ -6,28 +6,30 @@ const SOCKET_TOKEN_KEY = "chessplay.socketToken";
 const USER_KEY = "chessplay.user";
 const ONBOARDED_KEY = "chessplay.hasOnboarded";
 
+// TODO backend: replace this compatibility storage with separate accessToken,
+// refreshToken, and socketToken values when the API returns them distinctly.
 export async function saveAuthSession(input: {
   accessToken?: string | null;
   socketToken?: string | null;
   user?: unknown;
 }) {
-  const accessToken = input.accessToken || input.socketToken || null;
-  const socketToken = input.socketToken || input.accessToken || null;
-  if (accessToken) await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken);
-  if (socketToken) await SecureStore.setItemAsync(SOCKET_TOKEN_KEY, socketToken);
+  const storedAccessToken = input.accessToken || input.socketToken || null;
+  const storedSocketToken = input.socketToken || input.accessToken || null;
+  if (storedAccessToken) await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, storedAccessToken);
+  if (storedSocketToken) await SecureStore.setItemAsync(SOCKET_TOKEN_KEY, storedSocketToken);
   if (input.user) await SecureStore.setItemAsync(USER_KEY, JSON.stringify(input.user));
 }
 
 export async function readAuthSession() {
-  const [accessToken, socketToken, userJson, hasOnboarded] = await Promise.all([
+  const [storedAccessToken, storedSocketToken, userJson, hasOnboarded] = await Promise.all([
     SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
     SecureStore.getItemAsync(SOCKET_TOKEN_KEY),
     SecureStore.getItemAsync(USER_KEY),
     SecureStore.getItemAsync(ONBOARDED_KEY)
   ]);
   return {
-    accessToken,
-    socketToken,
+    accessToken: storedAccessToken,
+    socketToken: storedSocketToken,
     user: userJson ? (JSON.parse(userJson) as User) : null,
     hasOnboarded: hasOnboarded === "true"
   };

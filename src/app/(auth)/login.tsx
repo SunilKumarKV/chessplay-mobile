@@ -6,7 +6,7 @@ import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { Screen } from "@/components/Screen";
 import { TextField } from "@/components/TextField";
-import { api } from "@/services/api/client";
+import { api, authApi } from "@/services/api/client";
 import { saveAuthSession } from "@/services/storage/authStorage";
 import { useAuthStore } from "@/store/authStore";
 
@@ -17,8 +17,9 @@ export default function LoginScreen() {
   const mutation = useMutation({
     mutationFn: () => api.login(email.trim(), password),
     onSuccess: async (data) => {
-      await saveAuthSession({ accessToken: data.socketToken, socketToken: data.socketToken, user: data.user });
-      setSession({ user: data.user, accessToken: data.socketToken, socketToken: data.socketToken });
+      const session = authApi.responseSession(data);
+      await saveAuthSession(session);
+      setSession(session);
     },
     onError: (error) => Alert.alert("Sign in failed", error.message)
   });
@@ -40,4 +41,3 @@ export default function LoginScreen() {
     </Screen>
   );
 }
-

@@ -25,6 +25,10 @@ export type AuthSession = {
 export type AuthResponse = {
   message: string;
   user: User;
+  // Backend compatibility note:
+  // Today the backend returns its signed access JWT in this `socketToken` field.
+  // Mobile must keep accepting this payload until the backend exposes separate
+  // accessToken, refreshToken, and socketToken fields.
   socketToken?: string;
 };
 

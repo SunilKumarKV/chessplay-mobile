@@ -76,13 +76,28 @@ export async function apiClient<T>(endpoint: string, options: ApiOptions = {}): 
     throw new ApiError((data as { message?: string }).message || "Request failed", response.status, data);
   }
 
-  const maybeSocketToken = (data as { socketToken?: string }).socketToken;
+  const backendAccessJwtFromSocketToken = (data as { socketToken?: string }).socketToken;
   const maybeUser = (data as { user?: unknown }).user;
-  if (maybeSocketToken && maybeUser) {
-    await saveAuthSession({ accessToken: maybeSocketToken, socketToken: maybeSocketToken, user: maybeUser });
+  if (backendAccessJwtFromSocketToken && maybeUser) {
+    await saveAuthSession({
+      accessToken: backendAccessJwtFromSocketToken,
+      socketToken: backendAccessJwtFromSocketToken,
+      user: maybeUser
+    });
   }
 
   return data as T;
+}
+
+function authResponseSession(data: AuthResponse) {
+  // Backend compatibility: `socketToken` is currently a signed access JWT.
+  // TODO backend: return accessToken, refreshToken, and socketToken separately.
+  const backendAccessJwtFromSocketToken = data.socketToken || null;
+  return {
+    user: data.user,
+    accessToken: backendAccessJwtFromSocketToken,
+    socketToken: backendAccessJwtFromSocketToken
+  };
 }
 
 export const api = {
@@ -107,6 +122,10 @@ export const api = {
       skipAuth: true,
       body: JSON.stringify({ email })
     })
+};
+
+export const authApi = {
+  responseSession: authResponseSession
 };
 
 export const profileApi = {

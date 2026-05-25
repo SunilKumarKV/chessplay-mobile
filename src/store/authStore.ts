@@ -3,6 +3,9 @@ import type { User } from "@/types/api";
 
 type AuthState = {
   user: User | null;
+  // Backend compatibility: the current API sends a signed access JWT in a
+  // field named `socketToken`. Keep both fields populated until backend returns
+  // separate accessToken, refreshToken, and socketToken values.
   accessToken: string | null;
   socketToken: string | null;
   authError: string | null;
@@ -23,9 +26,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   authError: null,
   hasOnboarded: false,
   hydrated: false,
-  setSession: ({ user, accessToken = null, socketToken = null }) =>
-    set({ user, accessToken: accessToken || socketToken, socketToken: socketToken || accessToken || null, authError: null }),
-  setSocketToken: (socketToken) => set((state) => ({ socketToken, accessToken: state.accessToken || socketToken })),
+  setSession: ({ user, accessToken = null, socketToken = null }) => {
+    const storedAccessToken = accessToken || socketToken;
+    const storedSocketToken = socketToken || accessToken || null;
+    set({ user, accessToken: storedAccessToken, socketToken: storedSocketToken, authError: null });
+  },
+  setSocketToken: (socketToken) =>
+    set((state) => {
+      const storedAccessToken = state.accessToken || socketToken;
+      return { socketToken, accessToken: storedAccessToken };
+    }),
   setAuthError: (authError) => set({ authError }),
   clearSession: () => set({ user: null, accessToken: null, socketToken: null, authError: null }),
   setOnboarded: (hasOnboarded) => set({ hasOnboarded }),
