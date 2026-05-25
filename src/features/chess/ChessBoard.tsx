@@ -1,5 +1,5 @@
 import { Chess, type Square as ChessSquare } from "chess.js";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
@@ -8,11 +8,13 @@ import {
   algebraicToBackendRowCol,
   backendPieceColor,
   backendRowColToSquare,
+  findKing,
   getLegalBackendMoves,
   validateBackendBoard
 } from "@/features/chess/backendChessAdapter";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import type { SocketGameState } from "@/types/chess";
+import type { LocalBoardTheme } from "@/services/storage/localGameStorage";
 
 const files = ["a", "b", "c", "d", "e", "f", "g", "h"] as const;
 const pieceSymbols: Record<string, string> = {
@@ -34,6 +36,8 @@ type Props = {
   fen: string;
   gameState?: SocketGameState | null;
   orientation?: "white" | "black";
+  boardTheme?: LocalBoardTheme;
+  lastMove?: { from: ChessSquare; to: ChessSquare } | null;
   allowedColor?: "w" | "b" | "both";
   disabled?: boolean;
   onMove?: (from: ChessSquare, to: ChessSquare, promotion?: string) => void;
@@ -46,7 +50,17 @@ function squareAt(row: number, col: number, orientation: "white" | "black") {
   return `${file}${rank}` as ChessSquare;
 }
 
-export function ChessBoard({ fen, gameState, orientation = "white", allowedColor = "both", disabled, onMove, onInvalidSelection }: Props) {
+export function ChessBoard({
+  fen,
+  gameState,
+  orientation = "white",
+  boardTheme = "classic",
+  lastMove = null,
+  allowedColor = "both",
+  disabled,
+  onMove,
+  onInvalidSelection
+}: Props) {
   const colors = useThemeColors();
   const { width } = useWindowDimensions();
   const size = Math.min(width - 40, 420);
@@ -56,6 +70,12 @@ export function ChessBoard({ fen, gameState, orientation = "white", allowedColor
 
   const backendBoard = gameState?.board && validateBackendBoard(gameState.board) ? gameState.board : null;
   const chess = useMemo(() => new Chess(fen), [fen]);
+  const boardPalette = getBoardPalette(boardTheme, colors);
+  const checkedKingSquare = useMemo(() => {
+    if (!backendBoard || !gameState || (gameState.status !== "check" && gameState.status !== "checkmate")) return null;
+    const king = findKing(backendBoard, gameState.turn || "w");
+    return king ? backendRowColToSquare(king[0], king[1]) : null;
+  }, [backendBoard, gameState]);
   const legalTargets = useMemo(() => {
     if (!selected) return new Set<string>();
     if (backendBoard && gameState) {
@@ -64,6 +84,11 @@ export function ChessBoard({ fen, gameState, orientation = "white", allowedColor
     }
     return new Set(chess.moves({ square: selected, verbose: true }).map((move) => move.to));
   }, [backendBoard, chess, gameState, selected]);
+
+  useEffect(() => {
+    setSelected(null);
+    setPromotion(null);
+  }, [disabled, fen, gameState?.turn, gameState?.status]);
 
   function pieceAt(square: ChessSquare) {
     if (backendBoard) {
@@ -125,6 +150,8 @@ export function ChessBoard({ fen, gameState, orientation = "white", allowedColor
             const isDark = (row + col) % 2 === 1;
             const isSelected = selected === square;
             const isLegal = legalTargets.has(square);
+            const isLastMove = lastMove?.from === square || lastMove?.to === square;
+            const isCheckedKing = checkedKingSquare === square;
             return (
               <Pressable
                 key={square}
@@ -134,10 +161,12 @@ export function ChessBoard({ fen, gameState, orientation = "white", allowedColor
                   {
                     width: squareSize,
                     height: squareSize,
-                    backgroundColor: isDark ? colors.boardDark : colors.boardLight
+                    backgroundColor: isDark ? boardPalette.dark : boardPalette.light
                   }
                 ]}
               >
+                {isLastMove ? <View style={[styles.lastMove, { backgroundColor: boardPalette.lastMove }]} /> : null}
+                {isCheckedKing ? <View style={[styles.check, { borderColor: colors.danger }]} /> : null}
                 {isSelected ? <View style={[styles.selection, { borderColor: colors.highlight }]} /> : null}
                 {isLegal ? <View style={[styles.dot, { backgroundColor: colors.highlight }]} /> : null}
                 {piece ? (
@@ -179,11 +208,23 @@ export function ChessBoard({ fen, gameState, orientation = "white", allowedColor
   );
 }
 
+function getBoardPalette(theme: LocalBoardTheme, colors: ReturnType<typeof useThemeColors>) {
+  const palettes: Record<LocalBoardTheme, { light: string; dark: string; lastMove: string }> = {
+    classic: { light: colors.boardLight, dark: colors.boardDark, lastMove: "rgba(250, 204, 21, 0.35)" },
+    blue: { light: "#DCEBFA", dark: "#4B78A8", lastMove: "rgba(14, 165, 233, 0.35)" },
+    green: { light: "#E7F2D4", dark: "#6E8F57", lastMove: "rgba(132, 204, 22, 0.35)" },
+    dark: { light: "#9CA3AF", dark: "#374151", lastMove: "rgba(251, 191, 36, 0.34)" }
+  };
+  return palettes[theme];
+}
+
 const styles = StyleSheet.create({
   board: { flexDirection: "row", flexWrap: "wrap", borderWidth: 2, alignSelf: "center" },
   square: { alignItems: "center", justifyContent: "center" },
   piece: { textAlign: "center", textShadowColor: "rgba(0,0,0,0.35)", textShadowRadius: 2 },
   dot: { position: "absolute", width: 14, height: 14, borderRadius: 7, opacity: 0.85 },
+  lastMove: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
+  check: { position: "absolute", top: 5, right: 5, bottom: 5, left: 5, borderWidth: 3, borderRadius: 999 },
   selection: { position: "absolute", top: 3, right: 3, bottom: 3, left: 3, borderWidth: 3, borderRadius: 4 },
   modalBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.55)" },
   modalCard: { width: "100%", maxWidth: 360 },
