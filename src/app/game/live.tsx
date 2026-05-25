@@ -8,6 +8,7 @@ import { ChessBoard } from "@/features/chess/ChessBoard";
 import { MoveHistoryPanel } from "@/features/chess/MoveHistoryPanel";
 import { TimerBar } from "@/features/chess/TimerBar";
 import { describeGameStatus, fenFromSocketGame, squareToBackend } from "@/features/chess/chessState";
+import { LiveRoomChat } from "@/features/multiplayer/LiveRoomChat";
 import { emitSocket } from "@/services/socket/socketClient";
 import { useGameStore } from "@/store/gameStore";
 
@@ -15,6 +16,9 @@ export default function LiveGameScreen() {
   const router = useRouter();
   const liveRoom = useGameStore((state) => state.liveRoom);
   const setLiveRoom = useGameStore((state) => state.setLiveRoom);
+  const lastServerError = useGameStore((state) => state.lastServerError);
+  const drawOffer = useGameStore((state) => state.drawOffer);
+  const setDrawOffer = useGameStore((state) => state.setDrawOffer);
 
   if (!liveRoom) {
     return (
@@ -41,6 +45,20 @@ export default function LiveGameScreen() {
   return (
     <Screen>
       <AppText variant="title">Room {liveRoom.roomId}</AppText>
+      {lastServerError ? (
+        <Card>
+          <AppText variant="subtitle">Live game notice</AppText>
+          <AppText muted>{lastServerError}</AppText>
+        </Card>
+      ) : null}
+      {drawOffer ? (
+        <Card>
+          <AppText variant="subtitle">Draw offered</AppText>
+          <AppText muted>{drawOffer.fromName || "Opponent"} offered a draw.</AppText>
+          <Button label="Accept draw" onPress={() => { emitSocket("drawAccepted"); setDrawOffer(null); }} />
+          <Button label="Decline" variant="secondary" onPress={() => { emitSocket("drawDeclined"); setDrawOffer(null); }} />
+        </Card>
+      ) : null}
       <TimerBar />
       <ChessBoard
         fen={fen}
@@ -62,11 +80,12 @@ export default function LiveGameScreen() {
         <AppText variant="subtitle">{liveRoom.gameState.status || describeGameStatus(fen)}</AppText>
         <AppText muted>You are playing {liveRoom.color === "w" ? "white" : "black"}.</AppText>
         <MoveHistoryPanel moves={liveRoom.gameState.moves} />
+        {gameOver ? <Button label="View result" onPress={() => router.push("/game/result")} /> : null}
       </Card>
+      <LiveRoomChat />
       <Button label="Offer draw" variant="secondary" onPress={() => emitSocket("drawOffer")} disabled={gameOver} />
       <Button label="Resign" variant="danger" disabled={gameOver} onPress={() => Alert.alert("Resign", "Resign this game?", [{ text: "Cancel" }, { text: "Resign", onPress: () => emitSocket("resign") }])} />
       <Button label="Leave room" variant="secondary" onPress={leave} />
     </Screen>
   );
 }
-

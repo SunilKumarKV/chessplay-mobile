@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import type { User } from "@/types/api";
 
 const ACCESS_TOKEN_KEY = "chessplay.accessToken";
 const SOCKET_TOKEN_KEY = "chessplay.socketToken";
@@ -27,7 +28,7 @@ export async function readAuthSession() {
   return {
     accessToken,
     socketToken,
-    user: userJson ? JSON.parse(userJson) : null,
+    user: userJson ? (JSON.parse(userJson) as User) : null,
     hasOnboarded: hasOnboarded === "true"
   };
 }
@@ -43,4 +44,3 @@ export async function clearAuthSession() {
 export async function saveOnboarded(value = true) {
   await SecureStore.setItemAsync(ONBOARDED_KEY, String(value));
 }
-

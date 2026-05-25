@@ -26,8 +26,16 @@ export type SocketGameState = {
   chatHistory?: { username: string; text: string; timestamp: string }[];
 };
 
+export type RoomChatMessage = {
+  userId?: string;
+  username: string;
+  text: string;
+  timestamp: string;
+};
+
 export type LiveRoom = {
   roomId: string;
   color: PlayerColor;
   gameState: SocketGameState;
+  chatHistory?: RoomChatMessage[];
 };

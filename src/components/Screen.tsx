@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { SafeAreaView, ScrollView, StyleSheet, View } from "react-native";
 import { useThemeColors } from "@/hooks/useThemeColors";
+import { NetworkBanner } from "@/components/NetworkBanner";
 
 type Props = {
   children: ReactNode;
@@ -9,7 +10,12 @@ type Props = {
 
 export function Screen({ children, scroll = true }: Props) {
   const colors = useThemeColors();
-  const content = <View style={styles.content}>{children}</View>;
+  const content = (
+    <View style={styles.content}>
+      <NetworkBanner />
+      {children}
+    </View>
+  );
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
@@ -29,4 +35,3 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1 },
   content: { flex: 1, padding: 20, gap: 16 }
 });
-

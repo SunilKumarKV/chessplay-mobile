@@ -16,6 +16,12 @@ export type User = {
   emailVerified?: boolean;
 };
 
+export type AuthSession = {
+  user: User;
+  accessToken?: string | null;
+  socketToken?: string | null;
+};
+
 export type AuthResponse = {
   message: string;
   user: User;
@@ -65,6 +71,31 @@ export type Profile = User & {
   selectedBadge?: string;
 };
 
+export type SettingsPayload = {
+  user: User;
+  settings: {
+    privacy?: {
+      profileVisibility?: string;
+      gameHistoryVisibility?: string;
+      friendRequests?: string;
+    };
+    notifications?: Record<string, boolean>;
+    appearance?: {
+      theme?: "system" | "light" | "dark";
+      accentColor?: string;
+      boardTheme?: string;
+      selectedBadge?: string;
+    };
+    gameplay?: {
+      defaultMode?: string;
+      boardOrientation?: string;
+      moveConfirmation?: boolean;
+      soundEffects?: boolean;
+      animation?: string;
+    };
+  };
+};
+
 export type Puzzle = {
   id: string;
   puzzleId?: string;
@@ -85,3 +116,27 @@ export type Conversation = {
   lastMessage?: { text?: string; body?: string };
 };
 
+export type Message = {
+  id: string;
+  _id?: string;
+  conversation?: string;
+  senderId: string;
+  senderName?: string;
+  body: string;
+  text: string;
+  createdAt: string;
+  isOwn?: boolean;
+  read?: boolean;
+};
+
+export type Friend = User & {
+  relationship?: "friend" | "incoming" | "pending" | "none";
+};
+
+export type FriendRequest = {
+  id: string;
+  from: Friend;
+  createdAt?: string;
+};
+
+export type UserSearchResult = Friend;

@@ -3,7 +3,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo } from "react";
-import { readAuthSession } from "@/services/storage/authStorage";
+import { restoreMobileSession } from "@/services/api/authSession";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 
@@ -13,17 +13,13 @@ export default function RootLayout() {
   const queryClient = useMemo(() => new QueryClient(), []);
   const router = useRouter();
   const segments = useSegments();
-  const { hydrated, user, hasOnboarded, setHydrated, setSession, setOnboarded } = useAuthStore();
+  const { hydrated, user, hasOnboarded, setHydrated } = useAuthStore();
   const theme = useSettingsStore((state) => state.theme);
 
   useEffect(() => {
-    readAuthSession()
-      .then((session) => {
-        if (session.user) setSession({ user: session.user, accessToken: session.accessToken, socketToken: session.socketToken });
-        setOnboarded(session.hasOnboarded);
-      })
+    restoreMobileSession()
       .finally(() => setHydrated(true));
-  }, [setHydrated, setOnboarded, setSession]);
+  }, [setHydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -49,4 +45,3 @@ export default function RootLayout() {
     </QueryClientProvider>
   );
 }
-

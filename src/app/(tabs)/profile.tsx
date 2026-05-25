@@ -1,15 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "expo-router";
+import { Pressable } from "react-native";
 import { AppText } from "@/components/AppText";
 import { Card } from "@/components/Card";
 import { Screen } from "@/components/Screen";
 import { ErrorState, LoadingState } from "@/components/StateView";
-import { apiClient } from "@/services/api/client";
-import type { GameHistoryItem, Profile } from "@/types/api";
+import { apiClient, profileApi } from "@/services/api/client";
+import type { GameHistoryItem } from "@/types/api";
 
 export default function ProfileScreen() {
   const profile = useQuery({
     queryKey: ["profile", "me"],
-    queryFn: () => apiClient<{ profile: Profile }>("/profile/me")
+    queryFn: () => profileApi.me()
   });
   const history = useQuery({
     queryKey: ["games", "history"],
@@ -26,6 +28,11 @@ export default function ProfileScreen() {
           <AppText variant="subtitle">{profile.data.profile.displayName || profile.data.profile.username}</AppText>
           <AppText muted>Rating {profile.data.profile.rating || 1200}</AppText>
           <AppText muted>{profile.data.profile.bio || "No bio yet."}</AppText>
+          <Link href="/profile/edit" asChild>
+            <Pressable>
+              <AppText>Edit profile</AppText>
+            </Pressable>
+          </Link>
         </Card>
       ) : null}
       <Card>
@@ -44,4 +51,3 @@ export default function ProfileScreen() {
     </Screen>
   );
 }
-

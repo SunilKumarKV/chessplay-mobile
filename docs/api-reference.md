@@ -46,6 +46,7 @@ Mobile stores the returned `socketToken` in SecureStore and sends it as `Authori
 - `GET /messages/conversations`
 - `GET /messages/users/search`
 - `POST /messages/conversations`
+- `GET /messages/conversations/:id`
 - `GET /messages/conversations/:id/messages`
 - `POST /messages/conversations/:id/messages`
 - `PATCH /messages/conversations/:id/read`
@@ -58,6 +59,8 @@ Mobile stores the returned `socketToken` in SecureStore and sends it as `Authori
 - `POST /puzzles/:id/submit`
 - `GET /settings/me`
 - `PATCH /settings/me`
+
+All paths above are relative to `EXPO_PUBLIC_API_URL`, which already includes `/api`.
 
 ## Socket.IO Contract
 
@@ -140,6 +143,8 @@ Server emits:
 - Friend request UX endpoints are present under `/auth/friends/*`, but a cleaner `/social/friends` mobile contract would reduce coupling.
 - Room list pagination/filtering. `getRooms` socket event returns an in-memory list only.
 
+See [backend-mobile-gaps.md](backend-mobile-gaps.md) for the production backend change list.
+
 ## Reuse vs Redesign
 
 Reusable:
@@ -160,4 +165,3 @@ Redesigned for mobile:
 - Native safe-area layout
 - State management with Zustand instead of Redux/localStorage
 - Mobile-first game controls and social hub
-
