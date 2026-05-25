@@ -12,6 +12,7 @@ import type {
   User,
   UserSearchResult
 } from "@/types/api";
+import type { BackendSocketGameState } from "@/features/chess/backendChessAdapter";
 
 type ApiOptions = RequestInit & {
   skipAuth?: boolean;
@@ -139,7 +140,41 @@ export const api = {
 };
 
 export const gamesApi = {
-  activeRoom: () => apiClient<{ activeRoom: import("@/types/chess").LiveRoom | null }>("/games/active-room", { preserveSessionOnUnauthorized: true })
+  activeRoom: () => apiClient<{ activeRoom: import("@/types/chess").LiveRoom | null }>("/games/active-room", { preserveSessionOnUnauthorized: true }),
+  record: (payload: {
+    moves: { from: string; to: string; piece?: string; promotion?: string; timestamp?: string | number }[];
+    aiOpponent?: boolean;
+    aiDifficulty?: string | number;
+    playerColor: "w" | "b";
+    result: "white" | "black" | "draw";
+    winnerColor?: "w" | "b" | null;
+    duration?: number | null;
+  }) =>
+    apiClient<{ game: unknown }>("/games/record", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
+};
+
+export const aiApi = {
+  move: (payload: {
+    board: BackendSocketGameState["board"];
+    turn: "w" | "b";
+    level: "easy" | "medium" | "hard" | "pro";
+    moveHistory?: BackendSocketGameState["moveHistory"];
+    fen?: string;
+    hint?: boolean;
+  }) =>
+    apiClient<{
+      move: { fromRow: number; fromCol: number; toRow: number; toCol: number; promotion?: string };
+      evaluation: { type: "cp" | "mate"; value: number } | null;
+      bestLine: string[];
+      depth: number;
+      source: "stockfish" | "fallback";
+    }>("/ai/move", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
 };
 
 export const authApi = {

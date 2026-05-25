@@ -6,6 +6,7 @@ import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Screen } from "@/components/Screen";
 import { TextField } from "@/components/TextField";
+import { AiGamePanel } from "@/features/chess/AiGamePanel";
 import { ChessBoard } from "@/features/chess/ChessBoard";
 import { CapturedPiecesPanel } from "@/features/chess/CapturedPiecesPanel";
 import { MoveHistoryPanel } from "@/features/chess/MoveHistoryPanel";
@@ -390,6 +391,7 @@ export default function PlayScreen() {
   return (
     <Screen>
       <AppText variant="title">Play</AppText>
+      <AiGamePanel />
       <Card>
         <AppText variant="subtitle">Local Practice · Play vs Player</AppText>
         <AppText muted>Same-device chess with backend-compatible rules. AI/Stockfish is not connected in this build.</AppText>
