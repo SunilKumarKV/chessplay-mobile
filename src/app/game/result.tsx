@@ -17,11 +17,15 @@ export default function ResultScreen() {
       ? "Checkmate"
       : status === "resigned"
         ? "Game resigned"
-        : status === "stalemate"
-          ? "Stalemate"
-          : status?.startsWith("draw")
-            ? "Draw"
-            : status || "Game result";
+        : status === "timeout"
+          ? "Timeout"
+          : status === "abandoned"
+            ? "Abandoned"
+            : status === "stalemate"
+              ? "Stalemate"
+              : status?.startsWith("draw")
+                ? "Draw"
+                : status || "Game result";
   const fen = liveRoom ? fenFromSocketGame(liveRoom.gameState) : "";
 
   function done() {

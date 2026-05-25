@@ -1,4 +1,3 @@
-import { Chess } from "chess.js";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, View } from "react-native";
@@ -8,15 +7,16 @@ import { Card } from "@/components/Card";
 import { Screen } from "@/components/Screen";
 import { TextField } from "@/components/TextField";
 import { ChessBoard } from "@/features/chess/ChessBoard";
+import { CapturedPiecesPanel } from "@/features/chess/CapturedPiecesPanel";
 import { MoveHistoryPanel } from "@/features/chess/MoveHistoryPanel";
 import { TimerBar } from "@/features/chess/TimerBar";
-import { describeGameStatus } from "@/features/chess/chessState";
+import { describeGameStatus, fenFromSocketGame, squareToBackend } from "@/features/chess/chessState";
+import { applyBackendMove, createInitialBackendGameState } from "@/features/chess/backendChessAdapter";
 import { readActiveRoomSnapshot } from "@/services/storage/activeRoomStorage";
 import { recoverActiveGame } from "@/services/socket/rejoinActiveGame";
 import { getSocket } from "@/services/socket/socketClient";
 import { useAuthStore } from "@/store/authStore";
 import { useGameStore } from "@/store/gameStore";
-import type { MoveRecord } from "@/types/api";
 
 const ONLINE_TIME_CONTROLS = [
   { label: "No clock", value: null },
@@ -29,8 +29,7 @@ const ONLINE_TIME_CONTROLS = [
 
 export default function PlayScreen() {
   const router = useRouter();
-  const [localChess, setLocalChess] = useState(() => new Chess());
-  const [moves, setMoves] = useState<MoveRecord[]>([]);
+  const [localGameState, setLocalGameState] = useState(() => createInitialBackendGameState());
   const [roomCode, setRoomCode] = useState("");
   const [storedRoomId, setStoredRoomId] = useState<string | null>(null);
   const [timeControlIndex, setTimeControlIndex] = useState<number | null>(null);
@@ -46,7 +45,8 @@ export default function PlayScreen() {
   const setRoomOperation = useGameStore((state) => state.setRoomOperation);
   const reconnectStatus = useGameStore((state) => state.reconnectStatus);
   const lifecycleMessage = useGameStore((state) => state.lifecycleMessage);
-  const status = useMemo(() => describeGameStatus(localChess.fen()), [localChess]);
+  const localFen = useMemo(() => fenFromSocketGame(localGameState), [localGameState]);
+  const status = useMemo(() => describeGameStatus(localFen, localGameState), [localFen, localGameState]);
 
   function connect() {
     if (!token) {
@@ -119,20 +119,20 @@ export default function PlayScreen() {
         <AppText muted>Practice legal moves locally. AI/Stockfish is not connected in this build.</AppText>
         <TimerBar />
         <ChessBoard
-          fen={localChess.fen()}
+          fen={localFen}
+          gameState={localGameState}
           allowedColor="both"
           onMove={(from, to, promotion) => {
-            const next = new Chess(localChess.fen());
-            const move = next.move({ from, to, promotion });
-            if (move) {
-              setLocalChess(next);
-              setMoves((current) => [...current, { from, to, piece: move.piece, promotion }]);
-            }
+            const fromBackend = squareToBackend(from);
+            const toBackend = squareToBackend(to);
+            const next = applyBackendMove(localGameState, fromBackend.row, fromBackend.col, toBackend.row, toBackend.col, promotion || "Q");
+            if (next) setLocalGameState(next);
           }}
         />
         <AppText muted>{status}</AppText>
-        <MoveHistoryPanel moves={moves} />
-        <Button label="Reset board" variant="secondary" onPress={() => { setLocalChess(new Chess()); setMoves([]); }} />
+        <CapturedPiecesPanel capturedW={localGameState.capturedW} capturedB={localGameState.capturedB} board={localGameState.board} />
+        <MoveHistoryPanel moves={localGameState.moveHistory || []} />
+        <Button label="Reset board" variant="secondary" onPress={() => setLocalGameState(createInitialBackendGameState())} />
       </Card>
       <Card>
         <AppText variant="subtitle">Online multiplayer</AppText>

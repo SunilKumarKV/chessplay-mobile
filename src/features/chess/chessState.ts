@@ -28,11 +28,17 @@ export function describeGameStatus(fen: string, gameState?: Pick<SocketGameState
       case "stalemate":
         return "Stalemate";
       case "draw":
-      case "draw-50move":
-      case "draw-repetition":
         return "Draw";
+      case "draw-50move":
+        return "Draw by 50-move rule";
+      case "draw-repetition":
+        return "Draw by repetition";
       case "resigned":
         return "Resigned";
+      case "timeout":
+        return "Timeout";
+      case "abandoned":
+        return "Abandoned";
       case "playing":
         break;
     }

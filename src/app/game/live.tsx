@@ -1,14 +1,15 @@
 import { useRouter } from "expo-router";
-import { Chess } from "chess.js";
 import { Alert } from "react-native";
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Screen } from "@/components/Screen";
 import { ChessBoard } from "@/features/chess/ChessBoard";
+import { CapturedPiecesPanel } from "@/features/chess/CapturedPiecesPanel";
 import { MoveHistoryPanel } from "@/features/chess/MoveHistoryPanel";
 import { TimerBar } from "@/features/chess/TimerBar";
 import { describeGameStatus, fenFromSocketGame, squareToBackend } from "@/features/chess/chessState";
+import { isBackendMoveLegal } from "@/features/chess/backendChessAdapter";
 import { LiveRoomChat } from "@/features/multiplayer/LiveRoomChat";
 import { clearActiveRoomSnapshot } from "@/services/storage/activeRoomStorage";
 import { emitSocket } from "@/services/socket/socketClient";
@@ -105,6 +106,7 @@ export default function LiveGameScreen() {
       <TimerBar clock={clock || liveRoom.gameState.clock} />
       <ChessBoard
         fen={fen}
+        gameState={liveRoom.gameState}
         orientation={orientation}
         allowedColor={liveRoom.color}
         disabled={gameOver || isSpectating}
@@ -114,23 +116,21 @@ export default function LiveGameScreen() {
             showMoveError("Spectators cannot move pieces.");
             return;
           }
-          const chess = new Chess(fen);
-          const selectedPiece = chess.get(from);
-          if (!selectedPiece || selectedPiece.color !== liveRoom.color) {
+          const fromBackend = squareToBackend(from);
+          const toBackend = squareToBackend(to);
+          const selectedPiece = liveRoom.gameState.board?.[fromBackend.row]?.[fromBackend.col];
+          if (!selectedPiece || selectedPiece[0] !== liveRoom.color) {
             showMoveError("You can only move your own pieces.");
             return;
           }
-          if (chess.turn() !== liveRoom.color) {
+          if (liveRoom.gameState.turn !== liveRoom.color) {
             showMoveError("Wait for your opponent to move.");
             return;
           }
-          const candidate = chess.moves({ square: from, verbose: true }).find((move) => move.to === to && (!move.promotion || move.promotion === promotion));
-          if (!candidate) {
+          if (!isBackendMoveLegal(liveRoom.gameState, fromBackend.row, fromBackend.col, toBackend.row, toBackend.col)) {
             showMoveError("That move is not legal in the current position.");
             return;
           }
-          const fromBackend = squareToBackend(from);
-          const toBackend = squareToBackend(to);
           emitSocket("makeMove", {
             fromRow: fromBackend.row,
             fromCol: fromBackend.col,
@@ -152,6 +152,7 @@ export default function LiveGameScreen() {
         <MoveHistoryPanel moves={moveHistory} />
         {gameOver ? <Button label="View result" onPress={() => router.push("/game/result")} /> : null}
       </Card>
+      <CapturedPiecesPanel capturedW={liveRoom.gameState.capturedW} capturedB={liveRoom.gameState.capturedB} board={liveRoom.gameState.board} />
       <LiveRoomChat />
       {!isSpectating ? (
         <>

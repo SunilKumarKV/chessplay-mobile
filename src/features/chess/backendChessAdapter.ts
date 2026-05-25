@@ -13,6 +13,7 @@ export type BackendGameStatus =
   | "stalemate"
   | "draw"
   | "resigned"
+  | "abandoned"
   | "timeout"
   | "draw-50move"
   | "draw-repetition";
@@ -100,6 +101,23 @@ export type NormalizedBackendMove = {
 const START_FEN = new Chess().fen();
 const SQUARE_PATTERN = /^[a-h][1-8]$/;
 const PIECE_PATTERN = /^[wb][PNBRQK]$/;
+const PIECE_VALUES: Record<BackendPieceType, number> = { P: 1, N: 3, B: 3, R: 5, Q: 9, K: 0 };
+
+export const INITIAL_BACKEND_BOARD: BackendBoard = [
+  ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR"],
+  ["bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP"],
+  [null, null, null, null, null, null, null, null],
+  [null, null, null, null, null, null, null, null],
+  [null, null, null, null, null, null, null, null],
+  [null, null, null, null, null, null, null, null],
+  ["wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP"],
+  ["wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]
+];
+
+export const INITIAL_CASTLING: Required<BackendCastlingRights> = {
+  w: { kingSide: true, queenSide: true },
+  b: { kingSide: true, queenSide: true }
+};
 
 export function isBackendPiece(value: unknown): value is BackendPiece {
   return typeof value === "string" && PIECE_PATTERN.test(value);
@@ -107,6 +125,18 @@ export function isBackendPiece(value: unknown): value is BackendPiece {
 
 export function backendPieceColor(piece: BackendPiece) {
   return piece[0] as BackendColor;
+}
+
+export function backendPieceType(piece: BackendPiece) {
+  return piece[1] as BackendPieceType;
+}
+
+export function backendOpponent(color: BackendColor): BackendColor {
+  return color === "w" ? "b" : "w";
+}
+
+export function cloneBackendBoard(board: BackendBoard): BackendBoard {
+  return board.map((row) => [...row]);
 }
 
 export function backendRowColToSquare(row: number, col: number) {
@@ -142,7 +172,7 @@ function pieceToFen(piece: BackendBoardSquare) {
   return piece[0] === "w" ? type : type.toLowerCase();
 }
 
-function validateBackendBoard(board: BackendBoard) {
+export function validateBackendBoard(board: BackendBoard) {
   return Array.isArray(board) && board.length === 8 && board.every((row) => Array.isArray(row) && row.length === 8);
 }
 
@@ -220,6 +250,364 @@ export function backendBoardToFen(gameState: Pick<BackendSocketGameState, "board
       : 0;
   const fullmove = Math.max(1, Math.floor(moveCount / 2) + 1);
   return `${placement} ${activeColor} ${castlingToFen(gameState.castling)} ${enPassantToFen(gameState.enPassant)} ${halfmove} ${fullmove}`;
+}
+
+export function createInitialBackendGameState(): BackendSocketGameState {
+  const gameState: BackendSocketGameState = {
+    board: cloneBackendBoard(INITIAL_BACKEND_BOARD),
+    turn: "w",
+    enPassant: null,
+    castling: { w: { ...INITIAL_CASTLING.w }, b: { ...INITIAL_CASTLING.b } },
+    status: "playing",
+    halfmoveClock: 0,
+    positionHistory: [],
+    moveHistory: [],
+    capturedW: [],
+    capturedB: []
+  };
+  gameState.positionHistory = [getPositionKey(gameState)];
+  return gameState;
+}
+
+function hasPiecesInPath(board: BackendBoard, fromRow: number, fromCol: number, toRow: number, toCol: number) {
+  const rowDiff = toRow - fromRow;
+  const colDiff = toCol - fromCol;
+  const stepRow = rowDiff === 0 ? 0 : rowDiff > 0 ? 1 : -1;
+  const stepCol = colDiff === 0 ? 0 : colDiff > 0 ? 1 : -1;
+  let currentRow = fromRow + stepRow;
+  let currentCol = fromCol + stepCol;
+  while (currentRow !== toRow || currentCol !== toCol) {
+    if (board[currentRow]?.[currentCol]) return true;
+    currentRow += stepRow;
+    currentCol += stepCol;
+  }
+  return false;
+}
+
+function inBounds(row: number, col: number) {
+  return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row <= 7 && col >= 0 && col <= 7;
+}
+
+function isSquareAttackedBy(board: BackendBoard, row: number, col: number, attackerColor: BackendColor) {
+  const pseudoState: BackendSocketGameState = {
+    board,
+    turn: attackerColor,
+    enPassant: null,
+    castling: { w: {}, b: {} }
+  };
+
+  for (let r = 0; r < 8; r += 1) {
+    for (let c = 0; c < 8; c += 1) {
+      const piece = board[r][c];
+      if (piece && backendPieceColor(piece) === attackerColor && isBackendMoveLegal(pseudoState, r, c, row, col, true)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function isKingInCheckAfterMove(gameState: BackendSocketGameState, fromRow: number, fromCol: number, toRow: number, toCol: number, color: BackendColor) {
+  if (!gameState.board) return false;
+  const tempBoard = cloneBackendBoard(gameState.board);
+  const piece = tempBoard[fromRow][fromCol];
+  if (!piece) return false;
+  const type = backendPieceType(piece);
+  const targetPiece = tempBoard[toRow][toCol];
+  const isEnPassant = type === "P" && toCol !== fromCol && !targetPiece;
+
+  tempBoard[toRow][toCol] = piece;
+  tempBoard[fromRow][fromCol] = null;
+  if (isEnPassant) tempBoard[fromRow][toCol] = null;
+
+  const king = findKing(tempBoard, color);
+  if (!king) return false;
+  const opponentColor = backendOpponent(color);
+  for (let r = 0; r < 8; r += 1) {
+    for (let c = 0; c < 8; c += 1) {
+      const enemy = tempBoard[r][c];
+      if (enemy && backendPieceColor(enemy) === opponentColor) {
+        const miniState: BackendSocketGameState = {
+          board: tempBoard,
+          turn: opponentColor,
+          enPassant: null,
+          castling: { w: {}, b: {} }
+        };
+        if (isBackendMoveLegal(miniState, r, c, king[0], king[1], true)) return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function isBackendMoveLegal(
+  gameState: BackendSocketGameState,
+  fromRow: number,
+  fromCol: number,
+  toRow: number,
+  toCol: number,
+  skipCheckValidation = false
+) {
+  const board = gameState.board;
+  if (!board || !inBounds(fromRow, fromCol) || !inBounds(toRow, toCol)) return false;
+  const piece = board[fromRow][fromCol];
+  if (!piece) return false;
+
+  const color = backendPieceColor(piece);
+  if (color !== gameState.turn) return false;
+  if (fromRow === toRow && fromCol === toCol) return false;
+
+  const targetPiece = board[toRow][toCol];
+  if (targetPiece && backendPieceColor(targetPiece) === color) return false;
+  if (!skipCheckValidation && targetPiece && backendPieceType(targetPiece) === "K") return false;
+
+  const type = backendPieceType(piece);
+  const rowDiff = toRow - fromRow;
+  const colDiff = toCol - fromCol;
+  const absRow = Math.abs(rowDiff);
+  const absCol = Math.abs(colDiff);
+  let valid = false;
+
+  switch (type) {
+    case "P": {
+      const direction = color === "w" ? -1 : 1;
+      const startRow = color === "w" ? 6 : 1;
+      if (colDiff === 0 && rowDiff === direction && !targetPiece) valid = true;
+      else if (colDiff === 0 && fromRow === startRow && rowDiff === 2 * direction && !targetPiece && !board[fromRow + direction][fromCol]) valid = true;
+      else if (absCol === 1 && rowDiff === direction) {
+        if (targetPiece && backendPieceColor(targetPiece) === backendOpponent(color)) valid = true;
+        else if (gameState.enPassant?.[0] === toRow && gameState.enPassant?.[1] === toCol) {
+          const capturedPawn = board[fromRow][toCol];
+          valid = Boolean(capturedPawn && backendPieceType(capturedPawn) === "P" && backendPieceColor(capturedPawn) === backendOpponent(color));
+        }
+      }
+      break;
+    }
+    case "N":
+      valid = (absRow === 2 && absCol === 1) || (absRow === 1 && absCol === 2);
+      break;
+    case "B":
+      valid = absRow === absCol && !hasPiecesInPath(board, fromRow, fromCol, toRow, toCol);
+      break;
+    case "R":
+      valid = (rowDiff === 0 || colDiff === 0) && !hasPiecesInPath(board, fromRow, fromCol, toRow, toCol);
+      break;
+    case "Q":
+      valid = (absRow === absCol || rowDiff === 0 || colDiff === 0) && !hasPiecesInPath(board, fromRow, fromCol, toRow, toCol);
+      break;
+    case "K": {
+      if (absRow <= 1 && absCol <= 1) valid = true;
+      else if (rowDiff === 0 && absCol === 2) {
+        const rights = gameState.castling?.[color];
+        const baseRow = color === "w" ? 7 : 0;
+        const isKingSide = colDiff === 2;
+        const rookCol = isKingSide ? 7 : 0;
+        const pathCols = isKingSide ? [5, 6] : [1, 2, 3];
+        const passThroughCol = isKingSide ? 5 : 3;
+        const opponentColor = backendOpponent(color);
+        valid = Boolean(
+          rights &&
+            fromRow === baseRow &&
+            fromCol === 4 &&
+            (isKingSide ? rights.kingSide : rights.queenSide) &&
+            board[baseRow][rookCol] &&
+            backendPieceType(board[baseRow][rookCol] as BackendPiece) === "R" &&
+            !isSquareAttackedBy(board, fromRow, fromCol, opponentColor) &&
+            !isSquareAttackedBy(board, baseRow, passThroughCol, opponentColor) &&
+            pathCols.every((col) => !board[baseRow][col])
+        );
+      }
+      break;
+    }
+  }
+
+  if (!valid) return false;
+  if (skipCheckValidation) return true;
+  return !isKingInCheckAfterMove(gameState, fromRow, fromCol, toRow, toCol, color);
+}
+
+export function getLegalBackendMoves(gameState: BackendSocketGameState, row: number, col: number) {
+  const legal: [number, number][] = [];
+  for (let toRow = 0; toRow < 8; toRow += 1) {
+    for (let toCol = 0; toCol < 8; toCol += 1) {
+      if (isBackendMoveLegal(gameState, row, col, toRow, toCol)) legal.push([toRow, toCol]);
+    }
+  }
+  return legal;
+}
+
+export function findKing(board: BackendBoard, color: BackendColor) {
+  for (let row = 0; row < 8; row += 1) {
+    for (let col = 0; col < 8; col += 1) {
+      if (board[row][col] === `${color}K`) return [row, col] as [number, number];
+    }
+  }
+  return null;
+}
+
+export function isBackendKingInCheck(gameState: BackendSocketGameState, color: BackendColor) {
+  if (!gameState.board) return false;
+  const king = findKing(gameState.board, color);
+  if (!king) return false;
+  return isSquareAttackedBy(gameState.board, king[0], king[1], backendOpponent(color));
+}
+
+function hasAnyValidMove(gameState: BackendSocketGameState, color: BackendColor) {
+  const stateForColor = { ...gameState, turn: color };
+  if (!gameState.board) return false;
+  for (let row = 0; row < 8; row += 1) {
+    for (let col = 0; col < 8; col += 1) {
+      const piece = gameState.board[row][col];
+      if (piece && backendPieceColor(piece) === color && getLegalBackendMoves(stateForColor, row, col).length > 0) return true;
+    }
+  }
+  return false;
+}
+
+export function getBackendGameStatus(gameState: BackendSocketGameState): BackendGameStatus {
+  const color = gameState.turn || "w";
+  const inCheck = isBackendKingInCheck(gameState, color);
+  const hasMoves = hasAnyValidMove(gameState, color);
+  if (!hasMoves) return inCheck ? "checkmate" : "stalemate";
+  return inCheck ? "check" : "playing";
+}
+
+function toAlgebraic(row: number, col: number) {
+  return `${String.fromCharCode(97 + col)}${8 - row}`;
+}
+
+export function getPositionKey(gameState: Pick<BackendSocketGameState, "board" | "turn" | "castling" | "enPassant">) {
+  if (!gameState.board) return "";
+  const enPassant = gameState.enPassant ? toAlgebraic(gameState.enPassant[0], gameState.enPassant[1]) : "-";
+  return [backendBoardToFenPlacement(gameState.board), gameState.turn || "w", castlingToFen(gameState.castling), enPassant].join(" ");
+}
+
+function hasThreefoldRepetition(positionHistory: string[] = []) {
+  const counts = new Map<string, number>();
+  return positionHistory.some((position) => {
+    const next = (counts.get(position) || 0) + 1;
+    counts.set(position, next);
+    return next >= 3;
+  });
+}
+
+export function applyBackendMove(
+  inputState: BackendSocketGameState,
+  fromRow: number,
+  fromCol: number,
+  toRow: number,
+  toCol: number,
+  promotionPiece = "Q"
+): BackendSocketGameState | null {
+  if (!isBackendMoveLegal(inputState, fromRow, fromCol, toRow, toCol)) return null;
+  const gameState: BackendSocketGameState = {
+    ...inputState,
+    board: cloneBackendBoard(inputState.board || INITIAL_BACKEND_BOARD),
+    castling: {
+      w: { ...(inputState.castling?.w || {}) },
+      b: { ...(inputState.castling?.b || {}) }
+    },
+    capturedW: [...(inputState.capturedW || [])],
+    capturedB: [...(inputState.capturedB || [])],
+    moveHistory: [...(inputState.moveHistory || [])],
+    positionHistory: [...(inputState.positionHistory || [])]
+  };
+  const board = gameState.board as BackendBoard;
+  const piece = board[fromRow][fromCol] as BackendPiece;
+  const type = backendPieceType(piece);
+  const color = backendPieceColor(piece);
+  const targetPiece = board[toRow][toCol];
+  const rowDiff = toRow - fromRow;
+  const colDiff = toCol - fromCol;
+  const isEnPassant = type === "P" && colDiff !== 0 && !targetPiece;
+  const capturedPiece = isEnPassant ? board[fromRow][toCol] : targetPiece;
+
+  board[toRow][toCol] = piece;
+  board[fromRow][fromCol] = null;
+  if (isEnPassant) board[fromRow][toCol] = null;
+  if (type === "K" && Math.abs(colDiff) === 2) {
+    const baseRow = color === "w" ? 7 : 0;
+    if (toCol === 6) {
+      board[baseRow][5] = board[baseRow][7];
+      board[baseRow][7] = null;
+    } else if (toCol === 2) {
+      board[baseRow][3] = board[baseRow][0];
+      board[baseRow][0] = null;
+    }
+  }
+
+  let promotionLabel: string | null = null;
+  if (type === "P" && (toRow === 0 || toRow === 7)) {
+    const promo = (promotionPiece || "Q").toUpperCase() as BackendPieceType;
+    board[toRow][toCol] = `${color}${promo}` as BackendPiece;
+    promotionLabel = `=${promo}`;
+  }
+
+  if (capturedPiece) {
+    if (color === "w") gameState.capturedB?.push(capturedPiece);
+    else gameState.capturedW?.push(capturedPiece);
+  }
+
+  const castling = {
+    w: { ...(gameState.castling?.w || {}) },
+    b: { ...(gameState.castling?.b || {}) }
+  };
+  if (type === "K") {
+    castling[color].kingSide = false;
+    castling[color].queenSide = false;
+  }
+  if (type === "R") {
+    const baseRow = color === "w" ? 7 : 0;
+    if (fromRow === baseRow && fromCol === 7) castling[color].kingSide = false;
+    if (fromRow === baseRow && fromCol === 0) castling[color].queenSide = false;
+  }
+  if (targetPiece && backendPieceType(targetPiece) === "R") {
+    const capturedColor = backendPieceColor(targetPiece);
+    const baseRow = capturedColor === "w" ? 7 : 0;
+    if (toRow === baseRow && toCol === 7) castling[capturedColor].kingSide = false;
+    if (toRow === baseRow && toCol === 0) castling[capturedColor].queenSide = false;
+  }
+
+  gameState.castling = castling;
+  gameState.enPassant = type === "P" && Math.abs(rowDiff) === 2 ? [fromRow + rowDiff / 2, fromCol] : null;
+  gameState.turn = backendOpponent(color);
+  gameState.halfmoveClock = type === "P" || capturedPiece ? 0 : (gameState.halfmoveClock || 0) + 1;
+  gameState.positionHistory = gameState.positionHistory || [];
+  gameState.positionHistory.push(getPositionKey(gameState));
+  gameState.status =
+    gameState.halfmoveClock >= 100
+      ? "draw-50move"
+      : hasThreefoldRepetition(gameState.positionHistory)
+        ? "draw-repetition"
+        : getBackendGameStatus(gameState);
+
+  const moveText = `${piece}@${toAlgebraic(fromRow, fromCol)}→${toAlgebraic(toRow, toCol)}${promotionLabel || ""}`;
+  gameState.moveHistory = gameState.moveHistory || [];
+  gameState.moveHistory.push({
+    from: [fromRow, fromCol],
+    to: [toRow, toCol],
+    piece,
+    color,
+    text: moveText,
+    captured: capturedPiece || null,
+    promotion: promotionLabel || undefined,
+    timestamp: Date.now()
+  });
+  return gameState;
+}
+
+export function materialBalanceFromBoard(board: BackendBoard = []) {
+  let white = 0;
+  let black = 0;
+  for (const rank of board) {
+    for (const piece of rank) {
+      if (!piece) continue;
+      const value = PIECE_VALUES[backendPieceType(piece)] || 0;
+      if (backendPieceColor(piece) === "w") white += value;
+      else black += value;
+    }
+  }
+  return white - black;
 }
 
 export function normalizeBackendMove(move: Partial<BackendMoveHistoryEntry>): NormalizedBackendMove | null {

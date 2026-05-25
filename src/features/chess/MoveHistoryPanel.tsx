@@ -9,7 +9,9 @@ export function MoveHistoryPanel({ moves = [] }: { moves?: Partial<MoveRecord | 
     .map((move, index) => {
       const normalized = normalizeMoveRecord(move);
       if (!normalized) return `${index + 1}. --`;
-      return `${index + 1}. ${normalized.text || `${normalized.from}-${normalized.to}`}`;
+      const capture = normalized.captured ? "x" : "-";
+      const promotion = normalized.promotion ? `=${String(normalized.promotion).replace("=", "").toUpperCase()}` : "";
+      return `${index + 1}. ${normalized.text || `${normalized.from}${capture}${normalized.to}${promotion}`}`;
     })
     .join("  ");
 

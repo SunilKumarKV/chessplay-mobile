@@ -4,7 +4,15 @@ import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from "react-n
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
+import {
+  algebraicToBackendRowCol,
+  backendPieceColor,
+  backendRowColToSquare,
+  getLegalBackendMoves,
+  validateBackendBoard
+} from "@/features/chess/backendChessAdapter";
 import { useThemeColors } from "@/hooks/useThemeColors";
+import type { SocketGameState } from "@/types/chess";
 
 const files = ["a", "b", "c", "d", "e", "f", "g", "h"] as const;
 const pieceSymbols: Record<string, string> = {
@@ -24,6 +32,7 @@ const pieceSymbols: Record<string, string> = {
 
 type Props = {
   fen: string;
+  gameState?: SocketGameState | null;
   orientation?: "white" | "black";
   allowedColor?: "w" | "b" | "both";
   disabled?: boolean;
@@ -37,7 +46,7 @@ function squareAt(row: number, col: number, orientation: "white" | "black") {
   return `${file}${rank}` as ChessSquare;
 }
 
-export function ChessBoard({ fen, orientation = "white", allowedColor = "both", disabled, onMove, onInvalidSelection }: Props) {
+export function ChessBoard({ fen, gameState, orientation = "white", allowedColor = "both", disabled, onMove, onInvalidSelection }: Props) {
   const colors = useThemeColors();
   const { width } = useWindowDimensions();
   const size = Math.min(width - 40, 420);
@@ -45,26 +54,43 @@ export function ChessBoard({ fen, orientation = "white", allowedColor = "both", 
   const [selected, setSelected] = useState<ChessSquare | null>(null);
   const [promotion, setPromotion] = useState<{ from: ChessSquare; to: ChessSquare } | null>(null);
 
+  const backendBoard = gameState?.board && validateBackendBoard(gameState.board) ? gameState.board : null;
   const chess = useMemo(() => new Chess(fen), [fen]);
   const legalTargets = useMemo(() => {
     if (!selected) return new Set<string>();
+    if (backendBoard && gameState) {
+      const { row, col } = algebraicToBackendRowCol(selected);
+      return new Set(getLegalBackendMoves(gameState, row, col).map(([targetRow, targetCol]) => backendRowColToSquare(targetRow, targetCol)).filter(Boolean));
+    }
     return new Set(chess.moves({ square: selected, verbose: true }).map((move) => move.to));
-  }, [chess, selected]);
+  }, [backendBoard, chess, gameState, selected]);
+
+  function pieceAt(square: ChessSquare) {
+    if (backendBoard) {
+      const { row, col } = algebraicToBackendRowCol(square);
+      const piece = backendBoard[row][col];
+      return piece ? { color: backendPieceColor(piece), type: piece[1].toLowerCase() } : null;
+    }
+    return chess.get(square);
+  }
 
   function canSelectPiece(square: ChessSquare) {
-    const piece = chess.get(square);
+    const piece = pieceAt(square);
     if (!piece) return false;
     if (allowedColor !== "both" && piece.color !== allowedColor) return false;
-    return piece.color === chess.turn();
+    const turn = backendBoard ? gameState?.turn || "w" : chess.turn();
+    return piece.color === turn;
   }
 
   function handlePress(square: ChessSquare) {
     if (disabled) return;
-    const piece = chess.get(square);
+    const piece = pieceAt(square);
     if (selected && legalTargets.has(square)) {
-      const candidates = chess.moves({ square: selected, verbose: true }).filter((candidate) => candidate.to === square);
-      const promotionCandidates = candidates.filter((candidate) => candidate.promotion);
-      if (promotionCandidates.length) {
+      const selectedPiece = pieceAt(selected);
+      const { row: toRow } = algebraicToBackendRowCol(square);
+      const backendPromotion = selectedPiece?.type === "p" && (toRow === 0 || toRow === 7);
+      const chessPromotion = !backendBoard && chess.moves({ square: selected, verbose: true }).some((candidate) => candidate.to === square && candidate.promotion);
+      if (backendPromotion || chessPromotion) {
         setPromotion({ from: selected, to: square });
         return;
       }
@@ -83,7 +109,7 @@ export function ChessBoard({ fen, orientation = "white", allowedColor = "both", 
     }
     if (piece && allowedColor !== "both" && piece.color !== allowedColor) {
       onInvalidSelection?.("You can only move your own pieces.");
-    } else if (piece && piece.color !== chess.turn()) {
+    } else if (piece && piece.color !== (backendBoard ? gameState?.turn || "w" : chess.turn())) {
       onInvalidSelection?.("It is not that side's turn.");
     }
     setSelected(null);
@@ -95,7 +121,7 @@ export function ChessBoard({ fen, orientation = "white", allowedColor = "both", 
         {Array.from({ length: 8 }).map((_, row) =>
           Array.from({ length: 8 }).map((__, col) => {
             const square = squareAt(row, col, orientation);
-            const piece = chess.get(square);
+            const piece = pieceAt(square);
             const isDark = (row + col) % 2 === 1;
             const isSelected = selected === square;
             const isLegal = legalTargets.has(square);
