@@ -16,24 +16,56 @@ This is not a WebView or Capacitor wrapper. It is a TypeScript Expo app with nat
 - socket.io-client
 - chess.js
 
-## Setup
+## Local Setup
 
 ```bash
 npm install
 cp .env.example .env
-npm run typecheck
-npm run lint
-npm start
 ```
 
-The production defaults are:
+Set local `.env` values:
 
 ```bash
 EXPO_PUBLIC_API_URL=https://chessplay-b5ve.onrender.com/api
 EXPO_PUBLIC_SOCKET_URL=https://chessplay-b5ve.onrender.com
 ```
 
+Then validate:
+
+```bash
+npm run typecheck
+npm run lint
+```
+
 `.env.example` intentionally ships with blank values so local and CI environments must choose their target explicitly. Do not use localhost for production builds.
+
+## Expo Go Testing
+
+```bash
+npm start
+```
+
+Open the project in Expo Go for quick JavaScript-level testing. Use a development build for native behavior that Expo Go does not cover.
+
+## Development Build
+
+Run EAS project setup once before hosted builds:
+
+```bash
+npx eas init
+```
+
+Build Android development APK:
+
+```bash
+npx eas build -p android --profile development
+```
+
+Build iOS simulator development app:
+
+```bash
+npx eas build -p ios --profile development
+```
 
 ## Features Implemented
 
@@ -61,26 +93,27 @@ The mobile app uses the existing ChessPlay backend as-is. Missing mobile-specifi
 
 ## Android Production Build
 
-1. Install EAS CLI if needed:
+Install EAS CLI if needed:
 
 ```bash
 npm install -g eas-cli
 ```
 
-2. Configure the real production environment in your shell or EAS environment:
+Configure the real production environment in your shell or EAS environment:
 
 ```bash
 export EXPO_PUBLIC_API_URL=https://chessplay-b5ve.onrender.com/api
 export EXPO_PUBLIC_SOCKET_URL=https://chessplay-b5ve.onrender.com
 ```
 
-3. Replace placeholder assets in `assets/` before store submission:
+Replace placeholder assets in `assets/` before store submission:
 
 - `assets/icon.png`
 - `assets/adaptive-icon.png`
 - `assets/splash.png`
+- `assets/favicon.png`
 
-4. Validate locally:
+Validate locally:
 
 ```bash
 npm run typecheck
@@ -89,19 +122,47 @@ npx expo export --platform android --output-dir dist-validation
 rm -rf dist-validation
 ```
 
-5. Build the Android artifact:
+Build Android App Bundle:
 
 ```bash
-eas build --platform android --profile production
+npx eas init
+npx eas build -p android --profile production
 ```
 
-6. Submit after Play Console setup:
+Submit after Play Console setup:
 
 ```bash
-eas submit --platform android --profile production
+npx eas submit -p android --profile production
 ```
 
-The current `app.config.ts` includes a placeholder EAS project id. Run `eas init` for the production Expo account before the first hosted EAS build.
+The production Android profile emits an `.aab`.
+
+## iOS Production Build
+
+An Apple Developer account is required.
+
+```bash
+export EXPO_PUBLIC_API_URL=https://chessplay-b5ve.onrender.com/api
+export EXPO_PUBLIC_SOCKET_URL=https://chessplay-b5ve.onrender.com
+npx eas init
+npx eas build -p ios --profile production
+```
+
+Then submit to App Store Connect:
+
+```bash
+npx eas submit -p ios --profile production
+```
+
+See [docs/release-ios.md](docs/release-ios.md) for TestFlight and App Store steps.
+
+## Store Release Docs
+
+- [Google Play release guide](docs/release-playstore.md)
+- [iOS release guide](docs/release-ios.md)
+- [Privacy policy draft](docs/privacy-policy-draft.md)
+- [Store listing draft](docs/store-listing-draft.md)
+- [Backend mobile gaps](docs/backend-mobile-gaps.md)
 
 ## Validation
 
