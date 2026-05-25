@@ -11,6 +11,8 @@ import { ChessBoard } from "@/features/chess/ChessBoard";
 import { MoveHistoryPanel } from "@/features/chess/MoveHistoryPanel";
 import { TimerBar } from "@/features/chess/TimerBar";
 import { describeGameStatus } from "@/features/chess/chessState";
+import { readActiveRoomSnapshot } from "@/services/storage/activeRoomStorage";
+import { recoverActiveGame } from "@/services/socket/rejoinActiveGame";
 import { getSocket } from "@/services/socket/socketClient";
 import { useAuthStore } from "@/store/authStore";
 import { useGameStore } from "@/store/gameStore";
@@ -21,10 +23,13 @@ export default function PlayScreen() {
   const [localChess, setLocalChess] = useState(() => new Chess());
   const [moves, setMoves] = useState<MoveRecord[]>([]);
   const [roomCode, setRoomCode] = useState("");
+  const [storedRoomId, setStoredRoomId] = useState<string | null>(null);
   const token = useAuthStore((state) => state.socketToken || state.accessToken);
   const queueSize = useGameStore((state) => state.queueSize);
   const connectionStatus = useGameStore((state) => state.connectionStatus);
   const liveRoom = useGameStore((state) => state.liveRoom);
+  const reconnectStatus = useGameStore((state) => state.reconnectStatus);
+  const lifecycleMessage = useGameStore((state) => state.lifecycleMessage);
   const status = useMemo(() => describeGameStatus(localChess.fen()), [localChess]);
 
   function connect() {
@@ -54,6 +59,12 @@ export default function PlayScreen() {
     if (liveRoom) router.replace("/game/live");
   }, [liveRoom, router]);
 
+  useEffect(() => {
+    readActiveRoomSnapshot()
+      .then((snapshot) => setStoredRoomId(snapshot.activeRoomId))
+      .catch(() => setStoredRoomId(null));
+  }, [liveRoom]);
+
   return (
     <Screen>
       <AppText variant="title">Play</AppText>
@@ -80,6 +91,15 @@ export default function PlayScreen() {
       <Card>
         <AppText variant="subtitle">Online multiplayer</AppText>
         <AppText muted>Socket status: {connectionStatus}. Queue size: {queueSize}</AppText>
+        {lifecycleMessage ? <AppText muted>{lifecycleMessage}</AppText> : null}
+        {storedRoomId || reconnectStatus === "reconnecting" ? (
+          <Button
+            label={reconnectStatus === "reconnecting" ? "Reconnecting..." : `Rejoin ${storedRoomId}`}
+            variant="secondary"
+            loading={reconnectStatus === "reconnecting"}
+            onPress={() => recoverActiveGame("manual")}
+          />
+        ) : null}
         <View style={{ flexDirection: "row", gap: 10 }}>
           <View style={{ flex: 1 }}>
             <Button label="Find match" onPress={startQueue} />

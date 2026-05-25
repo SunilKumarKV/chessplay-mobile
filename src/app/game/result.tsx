@@ -4,6 +4,7 @@ import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Screen } from "@/components/Screen";
 import { describeGameStatus, fenFromSocketGame } from "@/features/chess/chessState";
+import { clearActiveRoomSnapshot } from "@/services/storage/activeRoomStorage";
 import { useGameStore } from "@/store/gameStore";
 
 export default function ResultScreen() {
@@ -24,6 +25,7 @@ export default function ResultScreen() {
   const fen = liveRoom ? fenFromSocketGame(liveRoom.gameState) : "";
 
   function done() {
+    clearActiveRoomSnapshot().catch(() => {});
     setLiveRoom(null);
     router.replace("/(tabs)/play");
   }

@@ -19,17 +19,17 @@ export type User = {
 export type AuthSession = {
   user: User;
   accessToken?: string | null;
+  refreshToken?: string | null;
   socketToken?: string | null;
 };
 
 export type AuthResponse = {
   message: string;
   user: User;
-  // Backend compatibility note:
-  // Today the backend returns its signed access JWT in this `socketToken` field.
-  // Mobile must keep accepting this payload until the backend exposes separate
-  // accessToken, refreshToken, and socketToken fields.
+  accessToken?: string;
+  refreshToken?: string;
   socketToken?: string;
+  expiresIn?: number;
 };
 
 export type LeaderboardPlayer = {

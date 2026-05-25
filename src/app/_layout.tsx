@@ -3,7 +3,9 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo } from "react";
+import { AppState } from "react-native";
 import { restoreMobileSession } from "@/services/api/authSession";
+import { recoverActiveGame } from "@/services/socket/rejoinActiveGame";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 
@@ -18,8 +20,21 @@ export default function RootLayout() {
 
   useEffect(() => {
     restoreMobileSession()
+      .then(() => {
+        if (useAuthStore.getState().user) return recoverActiveGame("launch");
+        return null;
+      })
       .finally(() => setHydrated(true));
   }, [setHydrated]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active" && useAuthStore.getState().user) {
+        recoverActiveGame("foreground").catch(() => {});
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     if (!hydrated) return;

@@ -3,15 +3,13 @@ import type { User } from "@/types/api";
 
 type AuthState = {
   user: User | null;
-  // Backend compatibility: the current API sends a signed access JWT in a
-  // field named `socketToken`. Keep both fields populated until backend returns
-  // separate accessToken, refreshToken, and socketToken values.
   accessToken: string | null;
+  refreshToken: string | null;
   socketToken: string | null;
   authError: string | null;
   hasOnboarded: boolean;
   hydrated: boolean;
-  setSession: (session: { user: User; accessToken?: string | null; socketToken?: string | null }) => void;
+  setSession: (session: { user: User; accessToken?: string | null; refreshToken?: string | null; socketToken?: string | null }) => void;
   setSocketToken: (socketToken: string | null) => void;
   setAuthError: (message: string | null) => void;
   clearSession: () => void;
@@ -22,14 +20,15 @@ type AuthState = {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   accessToken: null,
+  refreshToken: null,
   socketToken: null,
   authError: null,
   hasOnboarded: false,
   hydrated: false,
-  setSession: ({ user, accessToken = null, socketToken = null }) => {
+  setSession: ({ user, accessToken = null, refreshToken = null, socketToken = null }) => {
     const storedAccessToken = accessToken || socketToken;
     const storedSocketToken = socketToken || accessToken || null;
-    set({ user, accessToken: storedAccessToken, socketToken: storedSocketToken, authError: null });
+    set({ user, accessToken: storedAccessToken, refreshToken, socketToken: storedSocketToken, authError: null });
   },
   setSocketToken: (socketToken) =>
     set((state) => {
@@ -37,7 +36,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       return { socketToken, accessToken: storedAccessToken };
     }),
   setAuthError: (authError) => set({ authError }),
-  clearSession: () => set({ user: null, accessToken: null, socketToken: null, authError: null }),
+  clearSession: () => set({ user: null, accessToken: null, refreshToken: null, socketToken: null, authError: null }),
   setOnboarded: (hasOnboarded) => set({ hasOnboarded }),
   setHydrated: (hydrated) => set({ hydrated })
 }));

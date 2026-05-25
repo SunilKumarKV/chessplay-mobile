@@ -15,6 +15,7 @@ import type {
 
 type ApiOptions = RequestInit & {
   skipAuth?: boolean;
+  preserveSessionOnUnauthorized?: boolean;
 };
 
 export class ApiError extends Error {
@@ -69,19 +70,22 @@ export async function apiClient<T>(endpoint: string, options: ApiOptions = {}): 
   const data = await parseJson(response);
 
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 && !options.preserveSessionOnUnauthorized) {
       await clearAuthSession();
       useAuthStore.getState().clearSession();
     }
     throw new ApiError((data as { message?: string }).message || "Request failed", response.status, data);
   }
 
-  const backendAccessJwtFromSocketToken = (data as { socketToken?: string }).socketToken;
+  const tokenData = data as { accessToken?: string; refreshToken?: string; socketToken?: string };
+  const responseAccessToken = tokenData.accessToken || tokenData.socketToken;
+  const responseSocketToken = tokenData.socketToken || tokenData.accessToken;
   const maybeUser = (data as { user?: unknown }).user;
-  if (backendAccessJwtFromSocketToken && maybeUser) {
+  if ((responseAccessToken || responseSocketToken || tokenData.refreshToken) && maybeUser) {
     await saveAuthSession({
-      accessToken: backendAccessJwtFromSocketToken,
-      socketToken: backendAccessJwtFromSocketToken,
+      accessToken: responseAccessToken,
+      refreshToken: tokenData.refreshToken,
+      socketToken: responseSocketToken,
       user: maybeUser
     });
   }
@@ -90,38 +94,52 @@ export async function apiClient<T>(endpoint: string, options: ApiOptions = {}): 
 }
 
 function authResponseSession(data: AuthResponse) {
-  // Backend compatibility: `socketToken` is currently a signed access JWT.
-  // TODO backend: return accessToken, refreshToken, and socketToken separately.
-  const backendAccessJwtFromSocketToken = data.socketToken || null;
+  const accessToken = data.accessToken || data.socketToken || null;
+  const socketToken = data.socketToken || data.accessToken || null;
   return {
     user: data.user,
-    accessToken: backendAccessJwtFromSocketToken,
-    socketToken: backendAccessJwtFromSocketToken
+    accessToken,
+    refreshToken: data.refreshToken || null,
+    socketToken
   };
 }
 
 export const api = {
   login: (email: string, password: string) =>
-    apiClient<AuthResponse>("/auth/login", {
+    apiClient<AuthResponse>("/auth/mobile/login", {
       method: "POST",
       skipAuth: true,
       body: JSON.stringify({ email, password })
     }),
   register: (username: string, email: string, password: string) =>
-    apiClient<AuthResponse>("/auth/register", {
+    apiClient<AuthResponse>("/auth/mobile/register", {
       method: "POST",
       skipAuth: true,
       body: JSON.stringify({ username, email, password })
     }),
-  session: () => apiClient<{ user: User | null }>("/auth/session"),
-  socketToken: () => apiClient<{ socketToken: string }>("/auth/socket-token"),
-  logout: () => apiClient<{ message: string }>("/auth/logout", { method: "POST" }),
+  session: () => apiClient<{ user: User | null }>("/auth/mobile/session", { preserveSessionOnUnauthorized: true }),
+  refresh: (refreshToken: string) =>
+    apiClient<AuthResponse>("/auth/mobile/refresh", {
+      method: "POST",
+      skipAuth: true,
+      body: JSON.stringify({ refreshToken })
+    }),
+  socketToken: () => apiClient<{ socketToken: string }>("/auth/mobile/socket-token"),
+  logout: () =>
+    apiClient<{ message: string }>("/auth/mobile/logout", {
+      method: "POST",
+      body: JSON.stringify({ refreshToken: useAuthStore.getState().refreshToken })
+    }),
   forgotPassword: (email: string) =>
     apiClient<{ message: string }>("/auth/forgot-password", {
       method: "POST",
       skipAuth: true,
       body: JSON.stringify({ email })
     })
+};
+
+export const gamesApi = {
+  activeRoom: () => apiClient<{ activeRoom: import("@/types/chess").LiveRoom | null }>("/games/active-room", { preserveSessionOnUnauthorized: true })
 };
 
 export const authApi = {

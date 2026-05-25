@@ -18,29 +18,34 @@ Reference source: local read-only checkout at `../chessPlay`.
 
 ## Auth Flow
 
-- `POST /api/auth/register` accepts `username`, `email`, `password`, optional referral code. Returns `user` and `socketToken`.
-- `POST /api/auth/login` accepts `email`, `password`. Returns `user` and `socketToken`.
-- `GET /api/auth/session` reads bearer/cookie access token and returns `{ user }`.
-- `GET /api/auth/socket-token` returns a short-lived Socket.IO token for authenticated users.
-- `POST /api/auth/logout` clears server cookies. Mobile also clears SecureStore.
+- Web auth remains cookie-compatible under `/api/auth/*`.
+- Mobile auth uses dedicated bearer-token endpoints under `/api/auth/mobile/*`.
+- `POST /api/auth/mobile/register` accepts `username`, `email`, `password`, optional referral code. Returns `user`, `accessToken`, `refreshToken`, `socketToken`, and `expiresIn`.
+- `POST /api/auth/mobile/login` accepts `email`, `password`. Returns `user`, `accessToken`, `refreshToken`, `socketToken`, and `expiresIn`.
+- `GET /api/auth/mobile/session` reads bearer access token and returns `{ user }`.
+- `POST /api/auth/mobile/refresh` accepts `{ refreshToken }` and returns fresh mobile tokens.
+- `GET /api/auth/mobile/socket-token` returns a Socket.IO token for authenticated users.
+- `POST /api/auth/mobile/logout` invalidates the mobile refresh token. Mobile also clears SecureStore.
 - `POST /api/auth/forgot-password` exists. Mobile deep-link reset completion still needs app-link handling.
 - `POST /api/auth/reset-password` exists, but the current mobile app only exposes the request screen.
 
-The backend currently returns a signed access JWT in a field named `socketToken`. Mobile stores that token in SecureStore and sends it as `Authorization: Bearer <token>` for HTTP plus `handshake.auth.accessToken` for Socket.IO because the backend signs it with the access-token signer. This naming should be cleaned up when mobile refresh tokens are added.
+Older staging backends may still return a signed access JWT in a field named `socketToken`. Mobile keeps a compatibility fallback, but production mobile auth should use distinct `accessToken`, `refreshToken`, and `socketToken` fields.
 
 ## Backend API Endpoints Used In Mobile
 
-- `POST /auth/login`
-- `POST /auth/register`
-- `POST /auth/logout`
+- `POST /auth/mobile/login`
+- `POST /auth/mobile/register`
+- `POST /auth/mobile/refresh`
+- `POST /auth/mobile/logout`
 - `POST /auth/forgot-password`
-- `GET /auth/session`
-- `GET /auth/socket-token`
+- `GET /auth/mobile/session`
+- `GET /auth/mobile/socket-token`
 - `GET /profile/me`
 - `PATCH /profile/me`
 - `GET /games/history`
 - `POST /games/record`
 - `GET /games/leaderboard`
+- `GET /games/active-room`
 - `GET /games/:gameId`
 - `GET /auth/friends`
 - `GET /auth/users/search`

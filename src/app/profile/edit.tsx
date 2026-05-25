@@ -33,8 +33,8 @@ export default function ProfileEditScreen() {
     onSuccess: async (data) => {
       queryClient.setQueryData(["profile", "me"], data);
       const nextUser = { ...(auth.user || data.profile), ...data.profile };
-      auth.setSession({ user: nextUser, accessToken: auth.accessToken, socketToken: auth.socketToken });
-      await saveAuthSession({ user: nextUser, accessToken: auth.accessToken, socketToken: auth.socketToken });
+      auth.setSession({ user: nextUser, accessToken: auth.accessToken, refreshToken: auth.refreshToken, socketToken: auth.socketToken });
+      await saveAuthSession({ user: nextUser, accessToken: auth.accessToken, refreshToken: auth.refreshToken, socketToken: auth.socketToken });
       router.back();
     },
     onError: (error) => Alert.alert("Unable to update profile", error.message)
