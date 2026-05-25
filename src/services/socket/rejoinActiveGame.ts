@@ -17,6 +17,7 @@ async function tokenForSocket() {
 export async function recoverActiveGame(source: RecoverySource = "manual") {
   const store = useGameStore.getState();
   store.setReconnectStatus("reconnecting", source === "manual" ? "Checking for an active game..." : "Restoring active game...");
+  store.setRoomLifecycle("reconnecting", source === "manual" ? "Checking for an active game..." : "Restoring active game...");
 
   try {
     const response = await gamesApi.activeRoom();
@@ -25,6 +26,7 @@ export async function recoverActiveGame(source: RecoverySource = "manual") {
     if (!activeRoom) {
       await clearActiveRoomSnapshot();
       store.setReconnectStatus("idle");
+      store.setRoomLifecycle("idle");
       return null;
     }
 
@@ -34,6 +36,7 @@ export async function recoverActiveGame(source: RecoverySource = "manual") {
     const token = await tokenForSocket();
     if (!token) {
       store.setReconnectStatus("error", "Sign in again to rejoin your active game.");
+      store.setRoomLifecycle("room_closed", "Sign in again to rejoin your active game.");
       return activeRoom;
     }
 
@@ -63,6 +66,7 @@ export async function recoverActiveGame(source: RecoverySource = "manual") {
       if (refreshed) return recoverActiveGame(source);
     }
     store.setReconnectStatus("error", error instanceof Error ? error.message : "Unable to restore active game.");
+    store.setRoomLifecycle("room_closed", error instanceof Error ? error.message : "Unable to restore active game.");
     return null;
   }
 }

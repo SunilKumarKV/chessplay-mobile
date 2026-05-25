@@ -28,6 +28,12 @@ export default function PlayScreen() {
   const queueSize = useGameStore((state) => state.queueSize);
   const connectionStatus = useGameStore((state) => state.connectionStatus);
   const liveRoom = useGameStore((state) => state.liveRoom);
+  const lastServerError = useGameStore((state) => state.lastServerError);
+  const roomsList = useGameStore((state) => state.roomsList);
+  const roomLifecycle = useGameStore((state) => state.roomLifecycle);
+  const roomOperation = useGameStore((state) => state.roomOperation);
+  const setRoomLifecycle = useGameStore((state) => state.setRoomLifecycle);
+  const setRoomOperation = useGameStore((state) => state.setRoomOperation);
   const reconnectStatus = useGameStore((state) => state.reconnectStatus);
   const lifecycleMessage = useGameStore((state) => state.lifecycleMessage);
   const status = useMemo(() => describeGameStatus(localChess.fen()), [localChess]);
@@ -47,12 +53,42 @@ export default function PlayScreen() {
 
   function createRoom() {
     const socket = connect();
+    if (!socket) return;
+    setRoomOperation("creating");
+    setRoomLifecycle("creating", "Creating room...");
     socket?.emit("createRoom", { playerName: "Mobile Player" });
   }
 
-  function joinRoom() {
+  function joinRoomById(roomId: string) {
     const socket = connect();
-    socket?.emit("joinRoom", { roomId: roomCode.trim().toUpperCase(), playerName: "Mobile Player" });
+    if (!socket) return;
+    const normalizedRoomId = roomId.trim().toUpperCase();
+    if (!/^[A-Z0-9]{6}$/.test(normalizedRoomId)) {
+      setRoomLifecycle("room_closed", "Invalid room code. Use the 6-character room code.");
+      return;
+    }
+    setRoomOperation("joining");
+    setRoomLifecycle("joining", `Joining ${normalizedRoomId}...`);
+    socket.emit("joinRoom", { roomId: normalizedRoomId, playerName: "Mobile Player" });
+  }
+
+  function joinRoom() {
+    joinRoomById(roomCode);
+  }
+
+  function browseRooms() {
+    const socket = connect();
+    if (!socket) return;
+    setRoomOperation("browsing");
+    socket.emit("getRooms");
+  }
+
+  function spectateRoom(roomId: string) {
+    const socket = connect();
+    if (!socket) return;
+    setRoomOperation("spectating");
+    setRoomLifecycle("joining", `Opening spectator view for ${roomId}...`);
+    socket.emit("spectateRoom", { roomId });
   }
 
   useEffect(() => {
@@ -91,7 +127,9 @@ export default function PlayScreen() {
       <Card>
         <AppText variant="subtitle">Online multiplayer</AppText>
         <AppText muted>Socket status: {connectionStatus}. Queue size: {queueSize}</AppText>
+        <AppText muted>Room state: {roomLifecycle.replace(/_/g, " ")}.</AppText>
         {lifecycleMessage ? <AppText muted>{lifecycleMessage}</AppText> : null}
+        {lastServerError ? <AppText muted>{lastServerError}</AppText> : null}
         {storedRoomId || reconnectStatus === "reconnecting" ? (
           <Button
             label={reconnectStatus === "reconnecting" ? "Reconnecting..." : `Rejoin ${storedRoomId}`}
@@ -105,11 +143,32 @@ export default function PlayScreen() {
             <Button label="Find match" onPress={startQueue} />
           </View>
           <View style={{ flex: 1 }}>
-            <Button label="Create room" variant="secondary" onPress={createRoom} />
+            <Button label="Create room" variant="secondary" loading={roomOperation === "creating"} onPress={createRoom} />
           </View>
         </View>
         <TextField placeholder="Room code" value={roomCode} onChangeText={setRoomCode} autoCapitalize="characters" />
-        <Button label="Join room" variant="secondary" disabled={!roomCode.trim()} onPress={joinRoom} />
+        <Button label="Join room" variant="secondary" loading={roomOperation === "joining"} disabled={!roomCode.trim()} onPress={joinRoom} />
+        <Button label="Browse live rooms" variant="secondary" loading={roomOperation === "browsing"} onPress={browseRooms} />
+        {roomsList.length ? (
+          <View style={{ gap: 10 }}>
+            {roomsList.map((room) => (
+              <View key={room.id} style={{ gap: 8, paddingVertical: 10 }}>
+                <AppText variant="subtitle">Room {room.id}</AppText>
+                <AppText muted>
+                  {room.players?.w || "Waiting"} vs {room.players?.b || "Waiting"} · {room.status || "unknown"} · {room.spectatorCount || 0} watching
+                </AppText>
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <Button label="Join" disabled={room.isFull} onPress={() => { setRoomCode(room.id); joinRoomById(room.id); }} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Button label="Watch" variant="secondary" loading={roomOperation === "spectating"} onPress={() => spectateRoom(room.id)} />
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </Card>
     </Screen>
   );

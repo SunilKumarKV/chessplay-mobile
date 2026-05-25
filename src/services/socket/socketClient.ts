@@ -9,9 +9,16 @@ let activeAccessToken: string | null = null;
 let refreshHandler: (() => Promise<string | null>) | null = null;
 let tokenRefreshInFlight: Promise<string | null> | null = null;
 
-function applyLiveRoom(room: LiveRoom) {
+function isTerminalStatus(status?: string) {
+  return ["checkmate", "stalemate", "draw", "resigned", "abandoned", "draw-50move", "draw-repetition"].includes(status || "");
+}
+
+function applyLiveRoom(room: LiveRoom, options: { spectating?: boolean; message?: string | null } = {}) {
   useGameStore.getState().setLiveRoom(room);
+  useGameStore.getState().setIsSpectating(Boolean(options.spectating));
   useGameStore.getState().setReconnectStatus("idle");
+  useGameStore.getState().setRoomLifecycle(isTerminalStatus(room.gameState.status) ? "game_over" : "connected", options.message || null);
+  if (options.spectating) return;
   saveActiveRoomSnapshot(room).catch(() => {});
 }
 
@@ -21,6 +28,7 @@ async function rejoinStoredRoom(nextSocket: Socket) {
   const roomId = current?.roomId || stored?.activeRoomId;
   if (!roomId) return;
   useGameStore.getState().setReconnectStatus("reconnecting", "Reconnecting to your active game...");
+  useGameStore.getState().setRoomLifecycle("reconnecting", "Reconnecting to your active game...");
   nextSocket.emit("rejoinRoom", { roomId });
 }
 
@@ -64,6 +72,7 @@ export function getSocket(accessToken: string) {
     const message = expired ? "Your live-game token expired. Refreshing session..." : error.message;
     useGameStore.getState().setConnectionStatus("error");
     useGameStore.getState().setLastServerError(message);
+    useGameStore.getState().setRoomLifecycle(expired ? "reconnecting" : "room_closed", message);
     if (!expired || !refreshHandler) return;
     if (!tokenRefreshInFlight) {
       tokenRefreshInFlight = refreshHandler().finally(() => {
@@ -83,7 +92,9 @@ export function getSocket(accessToken: string) {
     const message = payload.message || "Live game error";
     useGameStore.getState().setLastServerError(message);
     useGameStore.getState().setReconnectStatus("error", message);
-    if (/room not found|player is not in this room/i.test(message)) {
+    useGameStore.getState().setRoomOperation("none");
+    if (/room not found|player is not in this room|invalid room code|room is full/i.test(message)) {
+      useGameStore.getState().setRoomLifecycle("room_closed", message);
       clearActiveRoomSnapshot().catch(() => {});
       useGameStore.getState().setLiveRoom(null);
     }
@@ -91,28 +102,44 @@ export function getSocket(accessToken: string) {
   socket.on("queueJoined", (payload: { queueSize: number }) => useGameStore.getState().setQueueSize(payload.queueSize));
   socket.on("queueUpdate", (payload: { queueSize: number }) => useGameStore.getState().setQueueSize(payload.queueSize));
   socket.on("queueLeft", (payload: { queueSize: number }) => useGameStore.getState().setQueueSize(payload.queueSize));
-  socket.on("matchFound", (payload: LiveRoom) => applyLiveRoom(payload));
-  socket.on("roomCreated", (payload: Omit<LiveRoom, "color">) => applyLiveRoom({ ...payload, color: "w" }));
-  socket.on("joinedRoom", (payload: LiveRoom) => applyLiveRoom(payload));
-  socket.on("rejoinedRoom", (payload: LiveRoom) => applyLiveRoom(payload));
+  socket.on("matchFound", (payload: LiveRoom) => applyLiveRoom(payload, { message: "Match found." }));
+  socket.on("roomCreated", (payload: Omit<LiveRoom, "color">) => applyLiveRoom({ ...payload, color: "w" }, { message: "Room created. Waiting for an opponent." }));
+  socket.on("joinedRoom", (payload: LiveRoom) => applyLiveRoom(payload, { message: "Joined room." }));
+  socket.on("rejoinedRoom", (payload: LiveRoom) => applyLiveRoom(payload, { message: "Rejoined active game." }));
+  socket.on("spectatedRoom", (payload: Omit<LiveRoom, "color"> & { spectatorCount?: number }) => {
+    applyLiveRoom({ ...payload, color: "w" }, { spectating: true, message: "Spectating room." });
+    useGameStore.getState().setSpectatorCount(payload.spectatorCount || 0);
+  });
   socket.on("playerJoined", (payload: { gameState: SocketGameState }) => {
     const current = useGameStore.getState().liveRoom;
-    if (current) applyLiveRoom({ ...current, gameState: payload.gameState });
+    if (current) applyLiveRoom({ ...current, gameState: payload.gameState }, { spectating: useGameStore.getState().isSpectating, message: "Opponent joined." });
   });
   socket.on("moveMade", (payload: { gameState: SocketGameState }) => {
     const current = useGameStore.getState().liveRoom;
-    if (current) applyLiveRoom({ ...current, gameState: payload.gameState });
+    if (current) applyLiveRoom({ ...current, gameState: payload.gameState }, { spectating: useGameStore.getState().isSpectating });
   });
   socket.on("drawAccepted", (payload: { gameState: SocketGameState }) => {
     const current = useGameStore.getState().liveRoom;
-    if (current) applyLiveRoom({ ...current, gameState: payload.gameState });
+    if (current) applyLiveRoom({ ...current, gameState: payload.gameState }, { message: "Draw accepted." });
     useGameStore.getState().setDrawOffer(null);
+    useGameStore.getState().setDrawOfferSent(false);
+    useGameStore.getState().setRoomLifecycle("game_over", "Draw accepted.");
+    clearActiveRoomSnapshot().catch(() => {});
   });
-  socket.on("drawOffer", (payload: { fromColor?: string; fromName?: string }) => useGameStore.getState().setDrawOffer(payload));
-  socket.on("drawDeclined", () => useGameStore.getState().setDrawOffer(null));
-  socket.on("playerResigned", (payload: { gameState: SocketGameState }) => {
+  socket.on("drawOffer", (payload: { fromColor?: string; fromName?: string }) => {
+    useGameStore.getState().setDrawOffer(payload);
+    useGameStore.getState().setRoomLifecycle("draw_offered", `${payload.fromName || "Opponent"} offered a draw.`);
+  });
+  socket.on("drawDeclined", () => {
+    useGameStore.getState().setDrawOffer(null);
+    useGameStore.getState().setDrawOfferSent(false);
+    useGameStore.getState().setRoomLifecycle("connected", "Draw offer declined.");
+  });
+  socket.on("playerResigned", (payload: { color?: string; winnerColor?: string; gameState: SocketGameState }) => {
     const current = useGameStore.getState().liveRoom;
-    if (current) applyLiveRoom({ ...current, gameState: payload.gameState });
+    const message = current?.color && payload.color === current.color ? "You resigned." : "Opponent resigned.";
+    if (current) applyLiveRoom({ ...current, gameState: payload.gameState }, { message });
+    useGameStore.getState().setRoomLifecycle("game_over", message);
     clearActiveRoomSnapshot().catch(() => {});
   });
   socket.on("chatMessage", (payload: RoomChatMessage) => useGameStore.getState().appendRoomChat(payload));
@@ -124,36 +151,45 @@ export function getSocket(accessToken: string) {
       `${payload.name || "Opponent"} disconnected. Waiting for reconnect...`,
       payload.reconnectBy || null
     );
+    useGameStore.getState().setRoomLifecycle("opponent_disconnected", `${payload.name || "Opponent"} disconnected.`);
   });
   socket.on("playerRejoined", (payload: { color?: string; name?: string; gameState?: SocketGameState }) => {
     const current = useGameStore.getState().liveRoom;
     if (current && payload.gameState) applyLiveRoom({ ...current, gameState: payload.gameState });
     useGameStore.getState().setReconnectStatus("opponent-rejoined", `${payload.name || "Opponent"} rejoined.`);
+    useGameStore.getState().setRoomLifecycle("connected", `${payload.name || "Opponent"} rejoined.`);
   });
   socket.on("playerLeft", (payload: { color?: string; name?: string }) => {
     useGameStore.getState().setReconnectStatus("room-closed", `${payload.name || "Opponent"} left the room.`);
+    useGameStore.getState().setRoomLifecycle("room_closed", `${payload.name || "Opponent"} left the room.`);
   });
   socket.on("playerAbandoned", (payload: { color?: string; winnerColor?: string; gameState?: SocketGameState }) => {
     const current = useGameStore.getState().liveRoom;
     if (current && payload.gameState) useGameStore.getState().setLiveRoom({ ...current, gameState: payload.gameState });
     const didWin = current?.color && payload.winnerColor === current.color;
     useGameStore.getState().setReconnectStatus("abandoned", didWin ? "You won by abandonment." : "You lost by abandonment.");
+    useGameStore.getState().setRoomLifecycle("game_over", didWin ? "You won by abandonment." : "You lost by abandonment.");
     clearActiveRoomSnapshot().catch(() => {});
   });
   socket.on("leftRoom", () => {
     clearActiveRoomSnapshot().catch(() => {});
     useGameStore.getState().setReconnectStatus("room-closed", "You left the room.");
+    useGameStore.getState().setIsSpectating(false);
+    useGameStore.getState().setRoomLifecycle("room_closed", "You left the room.");
     useGameStore.getState().setLiveRoom(null);
   });
   socket.on("roomClosed", (payload: { message?: string }) => {
     useGameStore.getState().setLastServerError(payload.message || "Room closed");
     useGameStore.getState().setReconnectStatus("room-closed", payload.message || "Room closed");
+    useGameStore.getState().setIsSpectating(false);
+    useGameStore.getState().setRoomLifecycle("room_closed", payload.message || "Room closed");
     clearActiveRoomSnapshot().catch(() => {});
     useGameStore.getState().setLiveRoom(null);
   });
   socket.on("spectatorCount", (payload: { count?: number }) => useGameStore.getState().setSpectatorCount(payload.count || 0));
   socket.on("roomsList", (payload: unknown) => {
     if (Array.isArray(payload)) useGameStore.getState().setRoomsList(payload);
+    useGameStore.getState().setRoomOperation("none");
   });
 
   return socket;

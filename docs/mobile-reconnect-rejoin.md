@@ -8,6 +8,7 @@
 - If the player does not return before grace expires, the backend emits `playerAbandoned` with `{ color, winnerColor, gameState }`.
 - Room closure and leave flows can emit `leftRoom`, `playerLeft`, and `roomClosed`.
 - Mobile recovery uses `GET /api/games/active-room`, which returns the active room for the authenticated user by scanning in-memory socket rooms by `userId`.
+- Full room lifecycle parity is documented in `docs/multiplayer-lifecycle.md`.
 
 Known backend limitation: active-room lookup is process-memory based. It supports socket-id loss from mobile backgrounding, but it does not recover games after backend process restart or cross-process room sharding.
 
@@ -19,6 +20,7 @@ Known backend limitation: active-room lookup is process-memory based. It support
 - On manual Play-screen rejoin, checks the backend first and only emits `rejoinRoom` for a server-confirmed active room.
 - On socket token expiry, refreshes mobile auth tokens and recreates the socket with the fresh token.
 - Clears active-room storage on logout, explicit leave, room closed, invalid rejoin, and terminal abandonment/resign result flows.
+- Room browsing uses `getRooms` / `roomsList`; spectating uses `spectateRoom` / `spectatedRoom`.
 
 ## Socket Events Handled
 

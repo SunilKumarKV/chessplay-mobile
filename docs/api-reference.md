@@ -109,6 +109,11 @@ Server emits:
 - `drawDeclined`
 - `drawAccepted`
 - `playerResigned`
+- `playerDisconnected`
+- `playerRejoined`
+- `playerLeft`
+- `playerAbandoned`
+- `leftRoom`
 - `chatMessage`
 - `roomsList`
 - `spectatedRoom`

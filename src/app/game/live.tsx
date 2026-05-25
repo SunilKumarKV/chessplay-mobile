@@ -19,11 +19,17 @@ export default function LiveGameScreen() {
   const liveRoom = useGameStore((state) => state.liveRoom);
   const setLiveRoom = useGameStore((state) => state.setLiveRoom);
   const lastServerError = useGameStore((state) => state.lastServerError);
+  const roomLifecycle = useGameStore((state) => state.roomLifecycle);
   const reconnectStatus = useGameStore((state) => state.reconnectStatus);
   const lifecycleMessage = useGameStore((state) => state.lifecycleMessage);
   const opponentReconnectBy = useGameStore((state) => state.opponentReconnectBy);
+  const spectatorCount = useGameStore((state) => state.spectatorCount);
+  const isSpectating = useGameStore((state) => state.isSpectating);
   const drawOffer = useGameStore((state) => state.drawOffer);
+  const drawOfferSent = useGameStore((state) => state.drawOfferSent);
   const setDrawOffer = useGameStore((state) => state.setDrawOffer);
+  const setDrawOfferSent = useGameStore((state) => state.setDrawOfferSent);
+  const setRoomLifecycle = useGameStore((state) => state.setRoomLifecycle);
 
   if (!liveRoom) {
     return (
@@ -84,8 +90,8 @@ export default function LiveGameScreen() {
         <Card>
           <AppText variant="subtitle">Draw offered</AppText>
           <AppText muted>{drawOffer.fromName || "Opponent"} offered a draw.</AppText>
-          <Button label="Accept draw" onPress={() => { emitSocket("drawAccepted"); setDrawOffer(null); }} />
-          <Button label="Decline" variant="secondary" onPress={() => { emitSocket("drawDeclined"); setDrawOffer(null); }} />
+          <Button label="Accept draw" onPress={() => { emitSocket("drawAccepted"); setDrawOffer(null); setRoomLifecycle("game_over", "Draw accepted."); }} />
+          <Button label="Decline" variant="secondary" onPress={() => { emitSocket("drawDeclined"); setDrawOffer(null); setRoomLifecycle("connected", "Draw offer declined."); }} />
         </Card>
       ) : null}
       <TimerBar />
@@ -93,9 +99,13 @@ export default function LiveGameScreen() {
         fen={fen}
         orientation={orientation}
         allowedColor={liveRoom.color}
-        disabled={gameOver}
+        disabled={gameOver || isSpectating}
         onInvalidSelection={showMoveError}
         onMove={(from, to, promotion) => {
+          if (isSpectating) {
+            showMoveError("Spectators cannot move pieces.");
+            return;
+          }
           const chess = new Chess(fen);
           const selectedPiece = chess.get(from);
           if (!selectedPiece || selectedPiece.color !== liveRoom.color) {
@@ -124,13 +134,40 @@ export default function LiveGameScreen() {
       />
       <Card>
         <AppText variant="subtitle">{describeGameStatus(fen, liveRoom.gameState)}</AppText>
-        <AppText muted>You are playing {liveRoom.color === "w" ? "white" : "black"}.</AppText>
+        <AppText muted>
+          {isSpectating ? `Spectating room ${liveRoom.roomId}.` : `You are playing ${liveRoom.color === "w" ? "white" : "black"}.`}
+        </AppText>
+        <AppText muted>Room state: {roomLifecycle.replace(/_/g, " ")}. Spectators: {spectatorCount}.</AppText>
         <MoveHistoryPanel moves={moveHistory} />
         {gameOver ? <Button label="View result" onPress={() => router.push("/game/result")} /> : null}
       </Card>
       <LiveRoomChat />
-      <Button label="Offer draw" variant="secondary" onPress={() => emitSocket("drawOffer")} disabled={gameOver} />
-      <Button label="Resign" variant="danger" disabled={gameOver} onPress={() => Alert.alert("Resign", "Resign this game?", [{ text: "Cancel" }, { text: "Resign", onPress: () => emitSocket("resign") }])} />
+      {!isSpectating ? (
+        <>
+          <Button
+            label={drawOfferSent ? "Draw offered" : "Offer draw"}
+            variant="secondary"
+            onPress={() => {
+              if (drawOfferSent) return;
+              emitSocket("drawOffer");
+              setDrawOfferSent(true);
+              setRoomLifecycle("draw_offered", "Draw offer sent.");
+            }}
+            disabled={gameOver || drawOfferSent || Boolean(drawOffer)}
+          />
+          <Button
+            label="Resign"
+            variant="danger"
+            disabled={gameOver}
+            onPress={() =>
+              Alert.alert("Resign", "Resign this game?", [
+                { text: "Cancel" },
+                { text: "Resign", onPress: () => emitSocket("resign") }
+              ])
+            }
+          />
+        </>
+      ) : null}
       <Button label="Leave room" variant="secondary" onPress={leave} />
     </Screen>
   );
