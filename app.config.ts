@@ -41,7 +41,19 @@ const config: ExpoConfig = {
   web: {
     favicon: "./assets/favicon.png"
   },
-  plugins: ["expo-router", "expo-secure-store", "expo-splash-screen"],
+  plugins: [
+    "expo-router",
+    "expo-secure-store",
+    "expo-splash-screen",
+    [
+      "expo-image-picker",
+      {
+        photosPermission: "Allow ChessPlay to choose a profile avatar from your photo library.",
+        cameraPermission: false,
+        microphonePermission: false
+      }
+    ]
+  ],
   experiments: {
     typedRoutes: true
   },

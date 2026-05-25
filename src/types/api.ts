@@ -12,6 +12,9 @@ export type User = {
   isAdmin?: boolean;
   isPremium?: boolean;
   isSupporter?: boolean;
+  title?: string | null;
+  bio?: string;
+  country?: string;
   plan?: string;
   emailVerified?: boolean;
 };
@@ -76,9 +79,23 @@ export type Profile = User & {
   displayName?: string;
   bio?: string;
   country?: string;
+  title?: string | null;
+  wins?: number;
+  losses?: number;
+  draws?: number;
+  adsDisabled?: boolean;
+  planStatus?: string;
+  supporterPlan?: string;
+  supporterSince?: string | null;
   joinedAt?: string;
   createdAt?: string;
   selectedBadge?: string;
+  earnedBadges?: string[];
+  privacy?: {
+    profileVisibility?: string;
+    gameHistoryVisibility?: string;
+    friendRequests?: string;
+  };
 };
 
 export type SettingsPayload = {
@@ -93,8 +110,13 @@ export type SettingsPayload = {
     appearance?: {
       theme?: "system" | "light" | "dark";
       accentColor?: string;
+      textColor?: string;
       boardTheme?: string;
       selectedBadge?: string;
+    };
+    badges?: {
+      earned?: string[];
+      selected?: string;
     };
     gameplay?: {
       defaultMode?: string;
@@ -181,9 +203,15 @@ export type Conversation = {
   id: string;
   _id?: string;
   title: string;
+  type?: "private" | "public";
+  roomKey?: string;
+  participants?: User[];
+  otherParticipants?: User[];
   unreadCount?: number;
   lastMessageAt?: string;
   lastMessage?: { text?: string; body?: string };
+  isMuted?: boolean;
+  isBlocked?: boolean;
 };
 
 export type Message = {
@@ -201,6 +229,7 @@ export type Message = {
 
 export type Friend = User & {
   relationship?: "friend" | "incoming" | "pending" | "none";
+  onlineVisible?: boolean;
 };
 
 export type FriendRequest = {
@@ -210,3 +239,34 @@ export type FriendRequest = {
 };
 
 export type UserSearchResult = Friend;
+
+export type PublicRoom = {
+  key: string;
+  title: string;
+  description: string;
+};
+
+export type CommunityPost = {
+  id?: string;
+  _id?: string;
+  type: "announcement" | "feedback" | "bug" | "feature" | "discussion";
+  status?: "open" | "reviewing" | "resolved" | "closed";
+  title: string;
+  body?: string;
+  content?: string;
+  authorName?: string;
+  author?: string;
+  authorSupporter?: boolean;
+  likesCount?: number;
+  liked?: boolean;
+  comments?: {
+    _id?: string;
+    id?: string;
+    username?: string;
+    text: string;
+    createdAt?: string;
+  }[];
+  isPinned?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};

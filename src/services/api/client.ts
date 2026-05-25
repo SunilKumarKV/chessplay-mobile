@@ -3,11 +3,13 @@ import { clearAuthSession, saveAuthSession } from "@/services/storage/authStorag
 import { useAuthStore } from "@/store/authStore";
 import type {
   AuthResponse,
+  CommunityPost,
   Conversation,
   Friend,
   FriendRequest,
   Message,
   Profile,
+  PublicRoom,
   Puzzle,
   PuzzleHint,
   PuzzleHistoryItem,
@@ -228,10 +230,23 @@ export const authApi = {
 
 export const profileApi = {
   me: () => apiClient<{ profile: Profile; recentGames?: unknown[] }>("/profile/me"),
+  publicProfile: (username: string) =>
+    apiClient<{ profile: Profile; recentGames?: unknown[]; gameHistoryHidden?: boolean }>(`/profile/${encodeURIComponent(username)}`, {
+      skipAuth: true
+    }),
   update: (input: { username: string; bio?: string; country?: string }) =>
     apiClient<{ profile: Profile; recentGames?: unknown[] }>("/profile/me", {
       method: "PATCH",
       body: JSON.stringify(input)
+    }),
+  uploadAvatar: (imageDataUrl: string) =>
+    apiClient<{ message: string; avatar: string; storage?: string }>("/auth/avatar", {
+      method: "POST",
+      body: JSON.stringify({ imageDataUrl })
+    }),
+  deleteAvatar: () =>
+    apiClient<{ message: string; user?: User }>("/auth/avatar", {
+      method: "DELETE"
     })
 };
 
@@ -281,5 +296,36 @@ export const messagesApi = {
   markRead: (conversationId: string) =>
     apiClient<{ conversation: Conversation; message: string }>(`/messages/conversations/${conversationId}/read`, {
       method: "PATCH"
+    })
+};
+
+export const communityApi = {
+  bootstrap: () => apiClient<{ publicRooms: PublicRoom[]; friends: Friend[] }>("/social/messaging/bootstrap"),
+  posts: (input: { type?: string; status?: string; limit?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (input.type) params.set("type", input.type);
+    if (input.status) params.set("status", input.status);
+    if (input.limit) params.set("limit", String(input.limit));
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return apiClient<{ posts: CommunityPost[] }>(`/social/community/posts${suffix}`, { preserveSessionOnUnauthorized: true });
+  },
+  createPost: (input: { type: CommunityPost["type"]; title: string; body: string }) =>
+    apiClient<{ message?: string; post: CommunityPost }>("/social/community/posts", {
+      method: "POST",
+      body: JSON.stringify(input)
+    }),
+  likePost: (postId: string) =>
+    apiClient<{ post: CommunityPost }>(`/social/community/posts/${postId}/like`, {
+      method: "POST"
+    }),
+  comment: (postId: string, text: string) =>
+    apiClient<{ post: CommunityPost }>(`/social/community/posts/${postId}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ text })
+    }),
+  openPublicRoom: (roomKey: string) =>
+    apiClient<{ conversation: Conversation }>("/social/messaging/open", {
+      method: "POST",
+      body: JSON.stringify({ type: "public", roomKey })
     })
 };

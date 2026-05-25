@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { Alert, Switch, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Switch, View } from "react-native";
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -10,6 +10,13 @@ import { api, settingsApi } from "@/services/api/client";
 import { clearMobileSession } from "@/services/api/authSession";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import type { SettingsPayload } from "@/types/api";
+
+const PRIVACY = ["public", "friends", "private"] as const;
+const FRIEND_REQUESTS = ["everyone", "friendsOfFriends", "none"] as const;
+const DEFAULT_MODES = ["ai", "online", "player"] as const;
+const ORIENTATIONS = ["white", "black", "auto"] as const;
+const BOARD_THEMES = ["classic", "tournamentGreen", "neonDark", "wooden", "marble", "minimalLight"] as const;
 
 export default function SettingsScreen() {
   const { theme, setTheme, soundEffects, setSoundEffects } = useSettingsStore();
@@ -43,44 +50,113 @@ export default function SettingsScreen() {
     clearSession();
   }
 
-  function saveAppearance(next: { theme?: "dark" | "light"; soundEffects?: boolean }) {
+  function saveSettings(next: SettingsPayload["settings"]) {
+    mutation.mutate(next);
+  }
+
+  function mergeSettings(partial: SettingsPayload["settings"]) {
     const current = query.data?.settings || {};
-    mutation.mutate({
+    saveSettings({
       ...current,
-      appearance: { ...current.appearance, theme: next.theme || theme },
-      gameplay: { ...current.gameplay, soundEffects: next.soundEffects ?? soundEffects }
+      ...partial,
+      privacy: { ...current.privacy, ...partial.privacy },
+      notifications: { ...current.notifications, ...partial.notifications },
+      appearance: { ...current.appearance, ...partial.appearance },
+      gameplay: { ...current.gameplay, ...partial.gameplay }
     });
   }
+
+  const settings = query.data?.settings;
 
   return (
     <Screen>
       <AppText variant="title">Settings</AppText>
       {query.isLoading ? <LoadingState label="Syncing settings" /> : null}
       {query.isError ? <ErrorState message={query.error.message} retry={() => query.refetch()} /> : null}
+
       <Card>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <AppText>Dark theme</AppText>
-          <Switch
-            value={theme === "dark"}
-            onValueChange={(value) => {
-              const nextTheme = value ? "dark" : "light";
-              setTheme(nextTheme);
-              saveAppearance({ theme: nextTheme });
-            }}
-          />
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <AppText>Sound effects</AppText>
-          <Switch
-            value={soundEffects}
-            onValueChange={(value) => {
-              setSoundEffects(value);
-              saveAppearance({ soundEffects: value });
-            }}
-          />
-        </View>
-        {mutation.isPending ? <AppText muted>Saving...</AppText> : null}
+        <AppText variant="subtitle">Privacy</AppText>
+        <OptionRow
+          label="Profile"
+          options={["public", "private"]}
+          value={settings?.privacy?.profileVisibility || "public"}
+          onChange={(value) => mergeSettings({ privacy: { profileVisibility: value } })}
+        />
+        <OptionRow
+          label="Game history"
+          options={PRIVACY}
+          value={settings?.privacy?.gameHistoryVisibility || "public"}
+          onChange={(value) => mergeSettings({ privacy: { gameHistoryVisibility: value } })}
+        />
+        <OptionRow
+          label="Friend requests"
+          options={FRIEND_REQUESTS}
+          value={settings?.privacy?.friendRequests || "everyone"}
+          onChange={(value) => mergeSettings({ privacy: { friendRequests: value } })}
+        />
       </Card>
+
+      <Card>
+        <AppText variant="subtitle">Notifications</AppText>
+        {["gameInvites", "friendRequests", "messages", "tournaments", "community", "supporter"].map((key) => (
+          <ToggleRow
+            key={key}
+            label={labelFor(key)}
+            value={settings?.notifications?.[key] ?? true}
+            onValueChange={(value) => mergeSettings({ notifications: { [key]: value } })}
+          />
+        ))}
+      </Card>
+
+      <Card>
+        <AppText variant="subtitle">Appearance</AppText>
+        <ToggleRow
+          label="Dark theme"
+          value={theme === "dark"}
+          onValueChange={(value) => {
+            const nextTheme = value ? "dark" : "light";
+            setTheme(nextTheme);
+            mergeSettings({ appearance: { theme: nextTheme } });
+          }}
+        />
+        <OptionRow
+          label="Board"
+          options={BOARD_THEMES}
+          value={settings?.appearance?.boardTheme || "classic"}
+          onChange={(value) => mergeSettings({ appearance: { boardTheme: value } })}
+        />
+      </Card>
+
+      <Card>
+        <AppText variant="subtitle">Gameplay</AppText>
+        <OptionRow
+          label="Default mode"
+          options={DEFAULT_MODES}
+          value={settings?.gameplay?.defaultMode || "ai"}
+          onChange={(value) => mergeSettings({ gameplay: { defaultMode: value } })}
+        />
+        <OptionRow
+          label="Board orientation"
+          options={ORIENTATIONS}
+          value={settings?.gameplay?.boardOrientation || "white"}
+          onChange={(value) => mergeSettings({ gameplay: { boardOrientation: value } })}
+        />
+        <ToggleRow
+          label="Move confirmation"
+          value={settings?.gameplay?.moveConfirmation ?? false}
+          onValueChange={(value) => mergeSettings({ gameplay: { moveConfirmation: value } })}
+        />
+        <ToggleRow
+          label="Sound effects"
+          value={soundEffects}
+          onValueChange={(value) => {
+            setSoundEffects(value);
+            mergeSettings({ gameplay: { soundEffects: value } });
+          }}
+        />
+      </Card>
+
+      {mutation.isPending ? <AppText muted>Saving...</AppText> : null}
       <Card>
         <AppText variant="subtitle">Network</AppText>
         <AppText muted>Production API and Socket.IO URLs are loaded from public Expo environment variables.</AppText>
@@ -89,3 +165,42 @@ export default function SettingsScreen() {
     </Screen>
   );
 }
+
+function ToggleRow({ label, value, onValueChange }: { label: string; value: boolean; onValueChange: (value: boolean) => void }) {
+  return (
+    <View style={styles.row}>
+      <AppText>{label}</AppText>
+      <Switch value={value} onValueChange={onValueChange} />
+    </View>
+  );
+}
+
+function OptionRow<T extends string>({ label, options, value, onChange }: { label: string; options: readonly T[]; value: string; onChange: (value: T) => void }) {
+  return (
+    <View style={styles.optionBlock}>
+      <AppText>{label}</AppText>
+      <View style={styles.optionRow}>
+        {options.map((option) => (
+          <Pressable key={option} onPress={() => onChange(option)} style={[styles.option, value === option ? styles.optionActive : null]}>
+            <AppText variant="caption">{labelFor(option)}</AppText>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function labelFor(value: string) {
+  return value
+    .replace(/([A-Z])/g, " $1")
+    .replace(/Of/g, " of")
+    .replace(/^./, (char) => char.toUpperCase());
+}
+
+const styles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  optionBlock: { gap: 8 },
+  optionRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  option: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
+  optionActive: { borderWidth: 2 }
+});

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, View } from "react-native";
+import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -57,9 +57,15 @@ export default function SocialSearchScreen() {
               <Button label="Message" variant="secondary" loading={messageMutation.isPending} onPress={() => messageMutation.mutate(String(user.id || user._id))} />
             </View>
           </View>
+          <Pressable onPress={() => router.push(`/profile/${encodeURIComponent(user.username)}` as never)} style={styles.profileLink}>
+            <AppText variant="caption" muted>Open public profile</AppText>
+          </Pressable>
         </Card>
       ))}
     </Screen>
   );
 }
 
+const styles = StyleSheet.create({
+  profileLink: { minHeight: 36, justifyContent: "center" }
+});
