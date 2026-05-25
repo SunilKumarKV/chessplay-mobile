@@ -100,9 +100,17 @@ export function getSocket(accessToken: string) {
       useGameStore.getState().setLiveRoom(null);
     }
   });
-  socket.on("queueJoined", (payload: { queueSize: number }) => useGameStore.getState().setQueueSize(payload.queueSize));
+  socket.on("queueJoined", (payload: { queueSize: number }) => {
+    useGameStore.getState().setQueueSize(payload.queueSize);
+    useGameStore.getState().setIsSearching(true);
+    useGameStore.getState().setRoomLifecycle("idle", "Searching for an opponent...");
+  });
   socket.on("queueUpdate", (payload: { queueSize: number }) => useGameStore.getState().setQueueSize(payload.queueSize));
-  socket.on("queueLeft", (payload: { queueSize: number }) => useGameStore.getState().setQueueSize(payload.queueSize));
+  socket.on("queueLeft", (payload: { queueSize: number }) => {
+    useGameStore.getState().setQueueSize(payload.queueSize);
+    useGameStore.getState().setIsSearching(false);
+    useGameStore.getState().setRoomLifecycle("idle", "Matchmaking cancelled.");
+  });
   socket.on("matchFound", (payload: LiveRoom) => applyLiveRoom(payload, { message: "Match found." }));
   socket.on("roomCreated", (payload: Omit<LiveRoom, "color">) => applyLiveRoom({ ...payload, color: "w" }, { message: "Room created. Waiting for an opponent." }));
   socket.on("joinedRoom", (payload: LiveRoom) => applyLiveRoom(payload, { message: "Joined room." }));
@@ -118,6 +126,15 @@ export function getSocket(accessToken: string) {
   socket.on("moveMade", (payload: { gameState: SocketGameState }) => {
     const current = useGameStore.getState().liveRoom;
     if (current) applyLiveRoom({ ...current, gameState: payload.gameState }, { spectating: useGameStore.getState().isSpectating });
+    if (isTerminalStatus(payload.gameState.status)) {
+      const winnerColor = payload.gameState.status === "checkmate" ? (payload.gameState.turn === "w" ? "b" : "w") : null;
+      useGameStore.getState().setResultSummary({
+        status: payload.gameState.status,
+        winnerColor,
+        message: payload.gameState.status === "checkmate" ? "The game ended by checkmate." : "The game ended in a draw.",
+        reason: payload.gameState.status
+      });
+    }
   });
   socket.on("drawAccepted", (payload: { gameState: SocketGameState }) => {
     const current = useGameStore.getState().liveRoom;
@@ -125,6 +142,7 @@ export function getSocket(accessToken: string) {
     useGameStore.getState().setDrawOffer(null);
     useGameStore.getState().setDrawOfferSent(false);
     useGameStore.getState().setRoomLifecycle("game_over", "Draw accepted.");
+    useGameStore.getState().setResultSummary({ status: "draw", winnerColor: null, message: "The game ended by accepted draw.", reason: "draw" });
     clearActiveRoomSnapshot().catch(() => {});
   });
   socket.on("drawOffer", (payload: { fromColor?: string; fromName?: string }) => {
@@ -141,6 +159,7 @@ export function getSocket(accessToken: string) {
     const message = current?.color && payload.color === current.color ? "You resigned." : "Opponent resigned.";
     if (current) applyLiveRoom({ ...current, gameState: payload.gameState }, { message });
     useGameStore.getState().setRoomLifecycle("game_over", message);
+    useGameStore.getState().setResultSummary({ status: "resigned", winnerColor: payload.winnerColor as PlayerColor | undefined, message, reason: "resign" });
     clearActiveRoomSnapshot().catch(() => {});
   });
   socket.on("clockSnapshot", (payload: { clock?: ClockState; serverNow?: number }) => {
@@ -156,6 +175,7 @@ export function getSocket(accessToken: string) {
     const didWin = current?.color && payload.winnerColor === current.color;
     const message = didWin ? "You won on time." : payload.color === current?.color ? "You lost on time." : "Game ended on time.";
     useGameStore.getState().setTimeoutResult({ color: payload.color, winnerColor: payload.winnerColor, message });
+    useGameStore.getState().setResultSummary({ status: "timeout", winnerColor: payload.winnerColor || null, message, reason: "timeout" });
     useGameStore.getState().setRoomLifecycle("game_over", message);
     clearActiveRoomSnapshot().catch(() => {});
   });
@@ -186,6 +206,12 @@ export function getSocket(accessToken: string) {
     const didWin = current?.color && payload.winnerColor === current.color;
     useGameStore.getState().setReconnectStatus("abandoned", didWin ? "You won by abandonment." : "You lost by abandonment.");
     useGameStore.getState().setRoomLifecycle("game_over", didWin ? "You won by abandonment." : "You lost by abandonment.");
+    useGameStore.getState().setResultSummary({
+      status: "abandoned",
+      winnerColor: payload.winnerColor as PlayerColor | undefined,
+      message: didWin ? "You won by abandonment." : "You lost by abandonment.",
+      reason: "abandoned"
+    });
     clearActiveRoomSnapshot().catch(() => {});
   });
   socket.on("leftRoom", () => {

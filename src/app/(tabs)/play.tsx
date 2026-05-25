@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Modal, StyleSheet, View } from "react-native";
+import { Alert, Modal, Share, StyleSheet, View } from "react-native";
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -34,7 +34,18 @@ const ONLINE_TIME_CONTROLS = [
   { label: "3+0", value: 2 },
   { label: "5+3", value: 3 },
   { label: "10+0", value: 4 },
-  { label: "10+5", value: 5 }
+  { label: "10+5", value: 5 },
+  { label: "30+0", value: 6 }
+];
+
+const MATCH_MODES = [
+  { id: "casual", label: "Casual", copy: "Friendly auto match" },
+  { id: "ranked", label: "Ranked", copy: "Rating focused pairing", ratingRange: "rated" },
+  { id: "blitz", label: "Blitz", copy: "Fast online game", timeControlIndex: 3 },
+  { id: "rapid", label: "Rapid", copy: "More thinking time", timeControlIndex: 4 },
+  { id: "beginner", label: "Beginner", copy: "New player friendly", ratingRange: "beginner" },
+  { id: "intermediate", label: "Intermediate", copy: "Balanced opponents", ratingRange: "intermediate" },
+  { id: "advanced", label: "Advanced", copy: "Stronger players", ratingRange: "advanced" }
 ];
 
 const LOCAL_TIME_CONTROLS = [
@@ -111,8 +122,13 @@ export default function PlayScreen() {
   const [roomCode, setRoomCode] = useState("");
   const [storedRoomId, setStoredRoomId] = useState<string | null>(null);
   const [timeControlIndex, setTimeControlIndex] = useState<number | null>(null);
+  const [selectedMatchMode, setSelectedMatchMode] = useState("casual");
+  const [queueStartedAt, setQueueStartedAt] = useState<number | null>(null);
+  const [queueElapsed, setQueueElapsed] = useState(0);
+  const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.socketToken || state.accessToken);
   const queueSize = useGameStore((state) => state.queueSize);
+  const isSearching = useGameStore((state) => state.isSearching);
   const connectionStatus = useGameStore((state) => state.connectionStatus);
   const liveRoom = useGameStore((state) => state.liveRoom);
   const lastServerError = useGameStore((state) => state.lastServerError);
@@ -132,6 +148,8 @@ export default function PlayScreen() {
     return { from: move.from as Square, to: move.to as Square };
   }, [localGameState.moveHistory]);
   const isLocalGameOver = Boolean(localResult) || ["checkmate", "stalemate", "draw", "draw-50move", "draw-repetition", "resigned", "timeout"].includes(localGameState.status || "");
+  const playerName = user?.username || "Mobile Player";
+  const activeMode = MATCH_MODES.find((mode) => mode.id === selectedMatchMode) || MATCH_MODES[0];
 
   function connect() {
     if (!token) {
@@ -143,7 +161,26 @@ export default function PlayScreen() {
 
   function startQueue() {
     const socket = connect();
-    socket?.emit("joinQueue", { mode: "casual", playerName: "Mobile Player", timeControlIndex });
+    if (!socket) return;
+    const nextTimeControl = typeof activeMode.timeControlIndex === "number" ? activeMode.timeControlIndex : timeControlIndex;
+    setTimeControlIndex(nextTimeControl);
+    setQueueStartedAt(Date.now());
+    setRoomLifecycle("idle", `Searching ${activeMode.label.toLowerCase()} opponents...`);
+    socket.emit("joinQueue", {
+      mode: activeMode.id,
+      ratingRange: activeMode.ratingRange,
+      playerName,
+      timeControlIndex: nextTimeControl
+    });
+  }
+
+  function cancelQueue() {
+    const socket = connect();
+    socket?.emit("leaveQueue");
+    setQueueStartedAt(null);
+    setQueueElapsed(0);
+    useGameStore.getState().setIsSearching(false);
+    setRoomLifecycle("idle", "Matchmaking cancelled.");
   }
 
   function createRoom() {
@@ -151,7 +188,7 @@ export default function PlayScreen() {
     if (!socket) return;
     setRoomOperation("creating");
     setRoomLifecycle("creating", "Creating room...");
-    socket?.emit("createRoom", { playerName: "Mobile Player", timeControlIndex });
+    socket?.emit("createRoom", { playerName, timeControlIndex });
   }
 
   function joinRoomById(roomId: string) {
@@ -164,7 +201,7 @@ export default function PlayScreen() {
     }
     setRoomOperation("joining");
     setRoomLifecycle("joining", `Joining ${normalizedRoomId}...`);
-    socket.emit("joinRoom", { roomId: normalizedRoomId, playerName: "Mobile Player" });
+    socket.emit("joinRoom", { roomId: normalizedRoomId, playerName });
   }
 
   function joinRoom() {
@@ -184,6 +221,10 @@ export default function PlayScreen() {
     setRoomOperation("spectating");
     setRoomLifecycle("joining", `Opening spectator view for ${roomId}...`);
     socket.emit("spectateRoom", { roomId });
+  }
+
+  function shareRoomCode(roomId: string) {
+    Share.share({ message: `Join my ChessPlay room: ${roomId}` }).catch(() => undefined);
   }
 
   function updateLocalPreferences(patch: Partial<LocalGamePreferences>) {
@@ -297,6 +338,19 @@ export default function PlayScreen() {
       .then((snapshot) => setStoredRoomId(snapshot.activeRoomId))
       .catch(() => setStoredRoomId(null));
   }, [liveRoom]);
+
+  useEffect(() => {
+    if (!isSearching || !queueStartedAt) return undefined;
+    const interval = setInterval(() => setQueueElapsed(Math.floor((Date.now() - queueStartedAt) / 1000)), 1000);
+    return () => clearInterval(interval);
+  }, [isSearching, queueStartedAt]);
+
+  useEffect(() => {
+    if (!isSearching) {
+      setQueueStartedAt(null);
+      setQueueElapsed(0);
+    }
+  }, [isSearching]);
 
   useEffect(() => {
     readLocalGamePreferences()
@@ -432,12 +486,28 @@ export default function PlayScreen() {
         </View>
       </Card>
       <Card>
-        <AppText variant="subtitle">Online multiplayer</AppText>
-        <AppText muted>Socket status: {connectionStatus}. Queue size: {queueSize}</AppText>
-        <AppText muted>Room state: {roomLifecycle.replace(/_/g, " ")}.</AppText>
+        <AppText variant="subtitle">Play Online</AppText>
+        <AppText muted>Signed in as {playerName}. Socket: {connectionStatus}. Room state: {roomLifecycle.replace(/_/g, " ")}.</AppText>
         {lifecycleMessage ? <AppText muted>{lifecycleMessage}</AppText> : null}
         {lastServerError ? <AppText muted>{lastServerError}</AppText> : null}
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        <AppText muted>Matchmaking mode</AppText>
+        <View style={styles.modeGrid}>
+          {MATCH_MODES.map((mode) => (
+            <View key={mode.id} style={styles.modeButton}>
+              <Button
+                label={mode.label}
+                variant={selectedMatchMode === mode.id ? "primary" : "secondary"}
+                onPress={() => {
+                  setSelectedMatchMode(mode.id);
+                  if (typeof mode.timeControlIndex === "number") setTimeControlIndex(mode.timeControlIndex);
+                }}
+              />
+              <AppText muted style={styles.modeCopy}>{mode.copy}</AppText>
+            </View>
+          ))}
+        </View>
+        <AppText muted>Time control</AppText>
+        <View style={styles.buttonWrap}>
           {ONLINE_TIME_CONTROLS.map((control) => (
             <Button
               key={control.label}
@@ -447,34 +517,54 @@ export default function PlayScreen() {
             />
           ))}
         </View>
+        {isSearching ? (
+          <View style={styles.statusBlock}>
+            <AppText variant="subtitle">Searching for opponent...</AppText>
+            <AppText muted>Mode: {activeMode.label}. Queue: {queueSize}. Elapsed: {queueElapsed}s.</AppText>
+            <Button label="Cancel search" variant="secondary" onPress={cancelQueue} />
+          </View>
+        ) : (
+          <AppText muted>Queue size: {queueSize}. Choose a mode and time control, then find a match.</AppText>
+        )}
         {storedRoomId || reconnectStatus === "reconnecting" ? (
-          <Button
-            label={reconnectStatus === "reconnecting" ? "Reconnecting..." : `Rejoin ${storedRoomId}`}
-            variant="secondary"
-            loading={reconnectStatus === "reconnecting"}
-            onPress={() => recoverActiveGame("manual")}
-          />
+          <View style={styles.statusBlock}>
+            <AppText variant="subtitle">Active game available</AppText>
+            <AppText muted>{storedRoomId ? `Room ${storedRoomId} can be rejoined.` : "Trying to reconnect your active game."}</AppText>
+            <Button
+              label={reconnectStatus === "reconnecting" ? "Reconnecting..." : `Rejoin ${storedRoomId}`}
+              variant="secondary"
+              loading={reconnectStatus === "reconnecting"}
+              onPress={() => recoverActiveGame("manual")}
+            />
+          </View>
         ) : null}
-        <View style={{ flexDirection: "row", gap: 10 }}>
+        <View style={styles.twoColumn}>
           <View style={{ flex: 1 }}>
-            <Button label="Find match" onPress={startQueue} />
+            <Button label="Find match" loading={isSearching} disabled={isSearching} onPress={startQueue} />
           </View>
           <View style={{ flex: 1 }}>
             <Button label="Create room" variant="secondary" loading={roomOperation === "creating"} onPress={createRoom} />
           </View>
         </View>
-        <TextField placeholder="Room code" value={roomCode} onChangeText={setRoomCode} autoCapitalize="characters" />
+        <TextField
+          placeholder="Room code"
+          value={roomCode}
+          onChangeText={(value) => setRoomCode(value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))}
+          autoCapitalize="characters"
+          maxLength={6}
+        />
         <Button label="Join room" variant="secondary" loading={roomOperation === "joining"} disabled={!roomCode.trim()} onPress={joinRoom} />
         <Button label="Browse live rooms" variant="secondary" loading={roomOperation === "browsing"} onPress={browseRooms} />
+        <Button label="Refresh rooms" variant="secondary" disabled={roomOperation === "browsing"} onPress={browseRooms} />
         {roomsList.length ? (
           <View style={{ gap: 10 }}>
             {roomsList.map((room) => (
-              <View key={room.id} style={{ gap: 8, paddingVertical: 10 }}>
+              <View key={room.id} style={styles.roomRow}>
                 <AppText variant="subtitle">Room {room.id}</AppText>
                 <AppText muted>
                   {room.players?.w || "Waiting"} vs {room.players?.b || "Waiting"} · {room.status || "unknown"} · {room.spectatorCount || 0} watching
                 </AppText>
-                <View style={{ flexDirection: "row", gap: 10 }}>
+                <View style={styles.twoColumn}>
                   <View style={{ flex: 1 }}>
                     <Button label="Join" disabled={room.isFull} onPress={() => { setRoomCode(room.id); joinRoomById(room.id); }} />
                   </View>
@@ -482,10 +572,13 @@ export default function PlayScreen() {
                     <Button label="Watch" variant="secondary" loading={roomOperation === "spectating"} onPress={() => spectateRoom(room.id)} />
                   </View>
                 </View>
+                <Button label="Share code" variant="secondary" onPress={() => shareRoomCode(room.id)} />
               </View>
             ))}
           </View>
-        ) : null}
+        ) : roomOperation === "browsing" ? null : (
+          <AppText muted>No public rooms loaded. Tap Browse live rooms to refresh.</AppText>
+        )}
       </Card>
       <Modal transparent visible={Boolean(localResult)} animationType="fade" onRequestClose={() => setLocalResult(null)}>
         <View style={styles.modalBackdrop}>
@@ -512,6 +605,11 @@ const styles = StyleSheet.create({
   setupGrid: { gap: 10 },
   setupField: { gap: 6 },
   buttonWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  modeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  modeButton: { width: "47%", gap: 4 },
+  modeCopy: { fontSize: 12 },
+  twoColumn: { flexDirection: "row", gap: 10 },
+  roomRow: { gap: 8, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth, borderColor: "rgba(148,163,184,0.35)" },
   statusBlock: { gap: 4 },
   modalBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.56)" },
   resultModal: { width: "100%", maxWidth: 380 }

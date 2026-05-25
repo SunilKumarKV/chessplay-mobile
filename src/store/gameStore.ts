@@ -44,9 +44,11 @@ type GameStore = {
   roomsList: RoomListItem[];
   isSpectating: boolean;
   drawOfferSent: boolean;
+  isSearching: boolean;
   clock: ClockState | null;
   clockServerNow: number | null;
   timeoutResult: { color?: PlayerColor; winnerColor?: PlayerColor; message: string } | null;
+  resultSummary: { status?: string; winnerColor?: PlayerColor | null; message?: string; reason?: string } | null;
   roomOperation: "none" | "creating" | "joining" | "spectating" | "browsing";
   setLiveRoom: (room: LiveRoom | null) => void;
   appendRoomChat: (message: RoomChatMessage) => void;
@@ -61,8 +63,10 @@ type GameStore = {
   setRoomsList: (rooms: RoomListItem[]) => void;
   setIsSpectating: (isSpectating: boolean) => void;
   setDrawOfferSent: (drawOfferSent: boolean) => void;
+  setIsSearching: (isSearching: boolean) => void;
   setClock: (clock: ClockState | null, serverNow?: number | null) => void;
   setTimeoutResult: (result: GameStore["timeoutResult"]) => void;
+  setResultSummary: (summary: GameStore["resultSummary"]) => void;
   setRoomOperation: (roomOperation: GameStore["roomOperation"]) => void;
 };
 
@@ -81,9 +85,11 @@ export const useGameStore = create<GameStore>((set) => ({
   roomsList: [],
   isSpectating: false,
   drawOfferSent: false,
+  isSearching: false,
   clock: null,
   clockServerNow: null,
   timeoutResult: null,
+  resultSummary: null,
   roomOperation: "none",
   setLiveRoom: (liveRoom) =>
     set((state) => ({
@@ -91,7 +97,8 @@ export const useGameStore = create<GameStore>((set) => ({
       roomChat: liveRoom?.chatHistory || liveRoom?.gameState.chatHistory || [],
       clock: liveRoom?.gameState.clock || state.clock,
       roomLifecycle: liveRoom ? "connected" : state.roomLifecycle,
-      roomOperation: "none"
+      roomOperation: "none",
+      isSearching: liveRoom ? false : state.isSearching
     })),
   appendRoomChat: (message) => set((state) => ({ roomChat: [...state.roomChat, message].slice(-50) })),
   setRoomChat: (roomChat) => set({ roomChat }),
@@ -106,7 +113,9 @@ export const useGameStore = create<GameStore>((set) => ({
   setRoomsList: (roomsList) => set({ roomsList }),
   setIsSpectating: (isSpectating) => set({ isSpectating }),
   setDrawOfferSent: (drawOfferSent) => set({ drawOfferSent }),
+  setIsSearching: (isSearching) => set({ isSearching }),
   setClock: (clock, clockServerNow = null) => set({ clock, clockServerNow }),
   setTimeoutResult: (timeoutResult) => set({ timeoutResult }),
+  setResultSummary: (resultSummary) => set({ resultSummary }),
   setRoomOperation: (roomOperation) => set({ roomOperation })
 }));
