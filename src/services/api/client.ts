@@ -8,6 +8,12 @@ import type {
   FriendRequest,
   Message,
   Profile,
+  Puzzle,
+  PuzzleHint,
+  PuzzleHistoryItem,
+  PuzzleLearning,
+  PuzzleLimits,
+  PuzzleStats,
   SettingsPayload,
   User,
   UserSearchResult
@@ -174,6 +180,45 @@ export const aiApi = {
     }>("/ai/move", {
       method: "POST",
       body: JSON.stringify(payload)
+    })
+};
+
+export const puzzlesApi = {
+  next: (input: { difficulty?: string; theme?: string; fresh?: boolean; daily?: boolean } = {}) => {
+    const params = new URLSearchParams();
+    if (input.difficulty) params.set("difficulty", input.difficulty);
+    if (input.theme) params.set("theme", input.theme);
+    if (input.fresh) params.set("fresh", "1");
+    const endpoint = input.daily ? "/puzzles/daily" : "/puzzles/next";
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return apiClient<{ puzzle: Puzzle | null; limits?: PuzzleLimits; message?: string; upgradeMessage?: string }>(`${endpoint}${suffix}`, {
+      preserveSessionOnUnauthorized: true
+    });
+  },
+  limits: () => apiClient<{ limits: PuzzleLimits }>("/puzzles/limits/me", { preserveSessionOnUnauthorized: true }),
+  stats: () => apiClient<{ stats: PuzzleStats; limits: PuzzleLimits }>("/puzzles/stats/me", { preserveSessionOnUnauthorized: true }),
+  history: () => apiClient<{ history: PuzzleHistoryItem[] }>("/puzzles/history/me", { preserveSessionOnUnauthorized: true }),
+  hint: (puzzleId: string, moveIndex: number) =>
+    apiClient<{ hint: PuzzleHint; hintsUsed: number; hintsLimit: number }>(`/puzzles/${puzzleId}/hint`, {
+      method: "POST",
+      body: JSON.stringify({ moveIndex }),
+      preserveSessionOnUnauthorized: true
+    }),
+  submit: (puzzleId: string, move: string, moveIndex: number) =>
+    apiClient<{
+      correct: boolean;
+      completed: boolean;
+      message?: string;
+      fen: string;
+      moveIndex: number;
+      move?: string;
+      opponentMove?: string;
+      progress?: { completedMoves: number; totalPlayerMoves: number };
+      learning?: PuzzleLearning | null;
+    }>(`/puzzles/${puzzleId}/submit`, {
+      method: "POST",
+      body: JSON.stringify({ move, moveIndex }),
+      preserveSessionOnUnauthorized: true
     })
 };
 

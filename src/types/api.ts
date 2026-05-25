@@ -110,11 +110,71 @@ export type Puzzle = {
   id: string;
   puzzleId?: string;
   fen: string;
+  initialMove?: string;
   moveIndex: number;
   solutionLength: number;
+  playerMoveCount?: number;
   rating?: number;
+  ratingDeviation?: number;
+  popularity?: number;
+  nbPlays?: number;
   difficulty?: string;
   themes?: string[];
+  theme?: string;
+  gameUrl?: string;
+  openingTags?: string[];
+  source?: string;
+  isPremium?: boolean;
+  learning?: PuzzleLearning | null;
+  attribution?: string;
+};
+
+export type PuzzleLearning = {
+  themeName?: string;
+  difficulty?: string;
+  rating?: number;
+  whatYouLearned?: string;
+  explanation?: string;
+  nextRecommendedDifficulty?: string;
+};
+
+export type PuzzleLimits = {
+  plan: string;
+  dateKey: string;
+  limit: number;
+  used: number;
+  remaining: number;
+  isPremium: boolean;
+};
+
+export type PuzzleStats = {
+  solved: number;
+  failed: number;
+  started: number;
+  accuracy: number;
+  rating: number;
+  highestRating: number;
+};
+
+export type PuzzleHistoryItem = {
+  puzzleId: string;
+  difficulty?: string;
+  status?: "started" | "in_progress" | "solved" | "failed";
+  hintsUsed?: number;
+  mistakeCount?: number;
+  movesSubmitted?: string[];
+  timeSpentMs?: number;
+  completedAt?: string;
+  updatedAt?: string;
+};
+
+export type PuzzleHint = {
+  level: number;
+  type: "piece" | "target" | "move";
+  text: string;
+  from?: string;
+  to?: string;
+  move?: string;
 };
 
 export type Conversation = {
