@@ -1,5 +1,6 @@
 import type {
   BackendBoard,
+  BackendClockState,
   BackendCastlingRights,
   BackendGameStatus,
   BackendMoveHistoryEntry,
@@ -12,6 +13,7 @@ export type Square = `${"a" | "b" | "c" | "d" | "e" | "f" | "g" | "h"}${1 | 2 | 
 
 export type PlayerColor = "w" | "b";
 export type GameStatus = BackendGameStatus;
+export type ClockState = BackendClockState;
 
 export type SocketGameState = BackendSocketGameState & {
   board?: BackendBoard;
@@ -26,6 +28,7 @@ export type SocketGameState = BackendSocketGameState & {
     w: BackendPlayerSlot;
     b: BackendPlayerSlot;
   };
+  clock?: ClockState;
 };
 
 export type RoomChatMessage = {

@@ -2,7 +2,7 @@ import { io, type Socket } from "socket.io-client";
 import { SOCKET_URL } from "@/constants/config";
 import { clearActiveRoomSnapshot, readActiveRoomSnapshot, saveActiveRoomSnapshot } from "@/services/storage/activeRoomStorage";
 import { useGameStore } from "@/store/gameStore";
-import type { LiveRoom, RoomChatMessage, SocketGameState } from "@/types/chess";
+import type { ClockState, LiveRoom, PlayerColor, RoomChatMessage, SocketGameState } from "@/types/chess";
 
 let socket: Socket | null = null;
 let activeAccessToken: string | null = null;
@@ -10,11 +10,12 @@ let refreshHandler: (() => Promise<string | null>) | null = null;
 let tokenRefreshInFlight: Promise<string | null> | null = null;
 
 function isTerminalStatus(status?: string) {
-  return ["checkmate", "stalemate", "draw", "resigned", "abandoned", "draw-50move", "draw-repetition"].includes(status || "");
+  return ["checkmate", "stalemate", "draw", "resigned", "abandoned", "timeout", "draw-50move", "draw-repetition"].includes(status || "");
 }
 
 function applyLiveRoom(room: LiveRoom, options: { spectating?: boolean; message?: string | null } = {}) {
   useGameStore.getState().setLiveRoom(room);
+  if (room.gameState.clock) useGameStore.getState().setClock(room.gameState.clock);
   useGameStore.getState().setIsSpectating(Boolean(options.spectating));
   useGameStore.getState().setReconnectStatus("idle");
   useGameStore.getState().setRoomLifecycle(isTerminalStatus(room.gameState.status) ? "game_over" : "connected", options.message || null);
@@ -139,6 +140,22 @@ export function getSocket(accessToken: string) {
     const current = useGameStore.getState().liveRoom;
     const message = current?.color && payload.color === current.color ? "You resigned." : "Opponent resigned.";
     if (current) applyLiveRoom({ ...current, gameState: payload.gameState }, { message });
+    useGameStore.getState().setRoomLifecycle("game_over", message);
+    clearActiveRoomSnapshot().catch(() => {});
+  });
+  socket.on("clockSnapshot", (payload: { clock?: ClockState; serverNow?: number }) => {
+    if (payload.clock) useGameStore.getState().setClock(payload.clock, payload.serverNow || null);
+  });
+  socket.on("clockTick", (payload: { clock?: ClockState; serverNow?: number }) => {
+    if (payload.clock) useGameStore.getState().setClock(payload.clock, payload.serverNow || null);
+  });
+  socket.on("timeoutResult", (payload: { color?: PlayerColor; winnerColor?: PlayerColor; gameState?: SocketGameState; clock?: ClockState; serverNow?: number }) => {
+    const current = useGameStore.getState().liveRoom;
+    if (payload.clock) useGameStore.getState().setClock(payload.clock, payload.serverNow || null);
+    if (current && payload.gameState) useGameStore.getState().setLiveRoom({ ...current, gameState: payload.gameState });
+    const didWin = current?.color && payload.winnerColor === current.color;
+    const message = didWin ? "You won on time." : payload.color === current?.color ? "You lost on time." : "Game ended on time.";
+    useGameStore.getState().setTimeoutResult({ color: payload.color, winnerColor: payload.winnerColor, message });
     useGameStore.getState().setRoomLifecycle("game_over", message);
     clearActiveRoomSnapshot().catch(() => {});
   });

@@ -18,12 +18,22 @@ import { useAuthStore } from "@/store/authStore";
 import { useGameStore } from "@/store/gameStore";
 import type { MoveRecord } from "@/types/api";
 
+const ONLINE_TIME_CONTROLS = [
+  { label: "No clock", value: null },
+  { label: "1+0", value: 0 },
+  { label: "3+0", value: 2 },
+  { label: "5+3", value: 3 },
+  { label: "10+0", value: 4 },
+  { label: "10+5", value: 5 }
+];
+
 export default function PlayScreen() {
   const router = useRouter();
   const [localChess, setLocalChess] = useState(() => new Chess());
   const [moves, setMoves] = useState<MoveRecord[]>([]);
   const [roomCode, setRoomCode] = useState("");
   const [storedRoomId, setStoredRoomId] = useState<string | null>(null);
+  const [timeControlIndex, setTimeControlIndex] = useState<number | null>(null);
   const token = useAuthStore((state) => state.socketToken || state.accessToken);
   const queueSize = useGameStore((state) => state.queueSize);
   const connectionStatus = useGameStore((state) => state.connectionStatus);
@@ -48,7 +58,7 @@ export default function PlayScreen() {
 
   function startQueue() {
     const socket = connect();
-    socket?.emit("joinQueue", { mode: "casual", playerName: "Mobile Player" });
+    socket?.emit("joinQueue", { mode: "casual", playerName: "Mobile Player", timeControlIndex });
   }
 
   function createRoom() {
@@ -56,7 +66,7 @@ export default function PlayScreen() {
     if (!socket) return;
     setRoomOperation("creating");
     setRoomLifecycle("creating", "Creating room...");
-    socket?.emit("createRoom", { playerName: "Mobile Player" });
+    socket?.emit("createRoom", { playerName: "Mobile Player", timeControlIndex });
   }
 
   function joinRoomById(roomId: string) {
@@ -130,6 +140,16 @@ export default function PlayScreen() {
         <AppText muted>Room state: {roomLifecycle.replace(/_/g, " ")}.</AppText>
         {lifecycleMessage ? <AppText muted>{lifecycleMessage}</AppText> : null}
         {lastServerError ? <AppText muted>{lastServerError}</AppText> : null}
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          {ONLINE_TIME_CONTROLS.map((control) => (
+            <Button
+              key={control.label}
+              label={control.label}
+              variant={timeControlIndex === control.value ? "primary" : "secondary"}
+              onPress={() => setTimeControlIndex(control.value)}
+            />
+          ))}
+        </View>
         {storedRoomId || reconnectStatus === "reconnecting" ? (
           <Button
             label={reconnectStatus === "reconnecting" ? "Reconnecting..." : `Rejoin ${storedRoomId}`}

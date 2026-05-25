@@ -13,6 +13,7 @@ export type BackendGameStatus =
   | "stalemate"
   | "draw"
   | "resigned"
+  | "timeout"
   | "draw-50move"
   | "draw-repetition";
 
@@ -72,6 +73,18 @@ export type BackendSocketGameState = {
   castling?: BackendCastlingRights;
   halfmoveClock?: number;
   positionHistory?: string[];
+  clock?: BackendClockState;
+};
+
+export type BackendClockState = {
+  enabled: boolean;
+  timeControlIndex: number | null;
+  whiteMs: number;
+  blackMs: number;
+  incrementMs: number;
+  activeColor: BackendColor;
+  lastTickAt: number | null;
+  status: "idle" | "running" | "paused" | "ended";
 };
 
 export type NormalizedBackendMove = {

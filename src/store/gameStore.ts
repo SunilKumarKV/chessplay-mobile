@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { LiveRoom, RoomChatMessage } from "@/types/chess";
+import type { ClockState, LiveRoom, PlayerColor, RoomChatMessage } from "@/types/chess";
 
 export type RoomListItem = {
   id: string;
@@ -44,6 +44,9 @@ type GameStore = {
   roomsList: RoomListItem[];
   isSpectating: boolean;
   drawOfferSent: boolean;
+  clock: ClockState | null;
+  clockServerNow: number | null;
+  timeoutResult: { color?: PlayerColor; winnerColor?: PlayerColor; message: string } | null;
   roomOperation: "none" | "creating" | "joining" | "spectating" | "browsing";
   setLiveRoom: (room: LiveRoom | null) => void;
   appendRoomChat: (message: RoomChatMessage) => void;
@@ -58,6 +61,8 @@ type GameStore = {
   setRoomsList: (rooms: RoomListItem[]) => void;
   setIsSpectating: (isSpectating: boolean) => void;
   setDrawOfferSent: (drawOfferSent: boolean) => void;
+  setClock: (clock: ClockState | null, serverNow?: number | null) => void;
+  setTimeoutResult: (result: GameStore["timeoutResult"]) => void;
   setRoomOperation: (roomOperation: GameStore["roomOperation"]) => void;
 };
 
@@ -76,11 +81,15 @@ export const useGameStore = create<GameStore>((set) => ({
   roomsList: [],
   isSpectating: false,
   drawOfferSent: false,
+  clock: null,
+  clockServerNow: null,
+  timeoutResult: null,
   roomOperation: "none",
   setLiveRoom: (liveRoom) =>
     set((state) => ({
       liveRoom,
       roomChat: liveRoom?.chatHistory || liveRoom?.gameState.chatHistory || [],
+      clock: liveRoom?.gameState.clock || state.clock,
       roomLifecycle: liveRoom ? "connected" : state.roomLifecycle,
       roomOperation: "none"
     })),
@@ -97,5 +106,7 @@ export const useGameStore = create<GameStore>((set) => ({
   setRoomsList: (roomsList) => set({ roomsList }),
   setIsSpectating: (isSpectating) => set({ isSpectating }),
   setDrawOfferSent: (drawOfferSent) => set({ drawOfferSent }),
+  setClock: (clock, clockServerNow = null) => set({ clock, clockServerNow }),
+  setTimeoutResult: (timeoutResult) => set({ timeoutResult }),
   setRoomOperation: (roomOperation) => set({ roomOperation })
 }));

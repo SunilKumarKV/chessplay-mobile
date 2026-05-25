@@ -25,6 +25,8 @@ export default function LiveGameScreen() {
   const opponentReconnectBy = useGameStore((state) => state.opponentReconnectBy);
   const spectatorCount = useGameStore((state) => state.spectatorCount);
   const isSpectating = useGameStore((state) => state.isSpectating);
+  const clock = useGameStore((state) => state.clock);
+  const timeoutResult = useGameStore((state) => state.timeoutResult);
   const drawOffer = useGameStore((state) => state.drawOffer);
   const drawOfferSent = useGameStore((state) => state.drawOfferSent);
   const setDrawOffer = useGameStore((state) => state.setDrawOffer);
@@ -46,7 +48,7 @@ export default function LiveGameScreen() {
 
   const fen = fenFromSocketGame(liveRoom.gameState);
   const orientation = liveRoom.color === "w" ? "white" : "black";
-  const gameOver = ["checkmate", "stalemate", "draw", "resigned", "abandoned", "draw-50move", "draw-repetition"].includes(liveRoom.gameState.status || "");
+  const gameOver = ["checkmate", "stalemate", "draw", "resigned", "abandoned", "timeout", "draw-50move", "draw-repetition"].includes(liveRoom.gameState.status || "");
   const moveHistory = liveRoom.gameState.moveHistory || liveRoom.gameState.moves || [];
 
   function showMoveError(message: string) {
@@ -94,7 +96,13 @@ export default function LiveGameScreen() {
           <Button label="Decline" variant="secondary" onPress={() => { emitSocket("drawDeclined"); setDrawOffer(null); setRoomLifecycle("connected", "Draw offer declined."); }} />
         </Card>
       ) : null}
-      <TimerBar />
+      {timeoutResult ? (
+        <Card>
+          <AppText variant="subtitle">Timeout</AppText>
+          <AppText muted>{timeoutResult.message}</AppText>
+        </Card>
+      ) : null}
+      <TimerBar clock={clock || liveRoom.gameState.clock} />
       <ChessBoard
         fen={fen}
         orientation={orientation}
@@ -137,7 +145,10 @@ export default function LiveGameScreen() {
         <AppText muted>
           {isSpectating ? `Spectating room ${liveRoom.roomId}.` : `You are playing ${liveRoom.color === "w" ? "white" : "black"}.`}
         </AppText>
-        <AppText muted>Room state: {roomLifecycle.replace(/_/g, " ")}. Spectators: {spectatorCount}.</AppText>
+        <AppText muted>
+          Room state: {roomLifecycle.replace(/_/g, " ")}. Spectators: {spectatorCount}.
+          {clock?.enabled ? ` Clock: ${clock.status}.` : " No clock."}
+        </AppText>
         <MoveHistoryPanel moves={moveHistory} />
         {gameOver ? <Button label="View result" onPress={() => router.push("/game/result")} /> : null}
       </Card>

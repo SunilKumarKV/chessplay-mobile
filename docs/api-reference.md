@@ -109,6 +109,9 @@ Server emits:
 - `drawDeclined`
 - `drawAccepted`
 - `playerResigned`
+- `clockSnapshot`
+- `clockTick`
+- `timeoutResult`
 - `playerDisconnected`
 - `playerRejoined`
 - `playerLeft`
@@ -150,7 +153,7 @@ Server emits:
 - Push notification device token registration and notification feed endpoints.
 - Mobile password reset deep-link contract.
 - AI move endpoint or documented mobile Stockfish worker package strategy.
-- Timed-game server reconciliation events. The UI has timer placeholders; backend room state does not expose authoritative clock ticks.
+- Multi-instance authoritative clock storage. Current timed-game clock state is authoritative in the active backend process.
 - Rematch socket event. Draw and resign exist; rematch is not implemented in the inspected socket handlers.
 - Draw offer state acknowledgement beyond peer event. Mobile can emit and receive draw events, but no persisted offer state exists.
 - Friend request UX endpoints are present under `/auth/friends/*`, but a cleaner `/social/friends` mobile contract would reduce coupling.

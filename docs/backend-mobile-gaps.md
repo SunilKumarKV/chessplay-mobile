@@ -19,7 +19,7 @@ No mobile push registration or notification feed endpoints were found. Needed en
 
 ## Authoritative Timers
 
-Socket room state does not expose authoritative clock ticks or timeout events. Mobile currently displays timer placeholders. Backend should emit clock snapshots and timeout result events.
+Implemented for active in-memory multiplayer rooms via `gameState.clock`, `clockSnapshot`, `clockTick`, and `timeoutResult`. Remaining gap: production horizontal scaling needs shared room/clock ownership beyond a single backend process.
 
 ## Rematch Events
 
