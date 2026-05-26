@@ -99,6 +99,13 @@ export default function ProfileScreen() {
               <AppText muted>Puzzle stats are unavailable right now.</AppText>
             ) : null}
           </Card>
+          <Card>
+            <AppText variant="subtitle">Badges and achievements</AppText>
+            {(data.earnedBadges || [data.selectedBadge || "new-player"]).filter(Boolean).map((badge) => (
+              <AppText key={badge} muted>{badge}</AppText>
+            ))}
+            <AppText variant="caption" muted>Badges are currently profile/settings driven. No XP, streak, or achievements API is available yet.</AppText>
+          </Card>
         </>
       ) : null}
 

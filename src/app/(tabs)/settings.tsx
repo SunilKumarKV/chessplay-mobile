@@ -179,6 +179,47 @@ export default function SettingsScreen() {
         </View>
       </Card>
       <Card>
+        <AppText variant="subtitle">Advanced tools</AppText>
+        <AppText muted>Tournaments, analysis notes, openings, notifications, and support use the existing ChessPlay backend where available.</AppText>
+        <View style={styles.actionRow}>
+          <View style={styles.action}>
+            <Link href={"/tournaments" as never} asChild>
+              <Pressable>
+                <Button label="Tournaments" variant="secondary" />
+              </Pressable>
+            </Link>
+          </View>
+          <View style={styles.action}>
+            <Link href={"/analysis" as never} asChild>
+              <Pressable>
+                <Button label="Analysis" variant="secondary" />
+              </Pressable>
+            </Link>
+          </View>
+        </View>
+        <View style={styles.actionRow}>
+          <View style={styles.action}>
+            <Link href={"/openings" as never} asChild>
+              <Pressable>
+                <Button label="Openings" variant="secondary" />
+              </Pressable>
+            </Link>
+          </View>
+          <View style={styles.action}>
+            <Link href={"/notifications" as never} asChild>
+              <Pressable>
+                <Button label="Notifications" variant="secondary" />
+              </Pressable>
+            </Link>
+          </View>
+        </View>
+        <Link href={"/support" as never} asChild>
+          <Pressable>
+            <Button label="Feedback and support" variant="secondary" />
+          </Pressable>
+        </Link>
+      </Card>
+      <Card>
         <AppText variant="subtitle">Network</AppText>
         <AppText muted>Production API and Socket.IO URLs are loaded from public Expo environment variables.</AppText>
       </Card>

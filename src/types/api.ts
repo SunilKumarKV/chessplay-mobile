@@ -346,6 +346,69 @@ export type ReferralDashboard = {
   };
 };
 
+export type Tournament = {
+  _id?: string;
+  id?: string;
+  title: string;
+  description?: string;
+  format?: string;
+  status: "upcoming" | "open" | "active" | "completed" | "cancelled" | string;
+  startsAt?: string;
+  endsAt?: string | null;
+  maxPlayers: number;
+  playerCount: number;
+  players?: {
+    username: string;
+    rating: number;
+    supporterBadge?: boolean;
+    joinedAt?: string;
+    status?: string;
+  }[];
+  rules?: string;
+  isJoined?: boolean;
+  roadmap?: string[];
+};
+
+export type AnalysisNote = {
+  gameId: string;
+  fen?: string;
+  pgn?: string;
+  note?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type AnalysisReport = {
+  accuracy?: number;
+  mistakes?: number;
+  blunders?: number;
+  bestMoves?: string[];
+  status?: "queued" | "complete" | "failed" | "coming_soon" | string;
+  summary?: string;
+};
+
+export type Opening = {
+  _id?: string;
+  id?: string;
+  eco: string;
+  name: string;
+  moves: string;
+  tags?: string[];
+};
+
+export type MistakeReviewItem = {
+  _id?: string;
+  id?: string;
+  fen: string;
+  movePlayed?: string;
+  bestMove?: string;
+  reason?: string;
+  severity?: "inaccuracy" | "mistake" | "blunder" | string;
+  status?: "open" | "reviewed" | "dismissed" | string;
+  updatedAt?: string;
+  createdAt?: string;
+};
+
 export type PublicRoom = {
   key: string;
   title: string;

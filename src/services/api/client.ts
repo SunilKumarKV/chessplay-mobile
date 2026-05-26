@@ -3,6 +3,8 @@ import { clearAuthSession, saveAuthSession } from "@/services/storage/authStorag
 import { useAuthStore } from "@/store/authStore";
 import type {
   AuthResponse,
+  AnalysisNote,
+  AnalysisReport,
   BillingPlan,
   BillingState,
   CommunityPost,
@@ -12,6 +14,8 @@ import type {
   Message,
   PaymentIntent,
   PaymentMethod,
+  MistakeReviewItem,
+  Opening,
   Profile,
   PublicRoom,
   Puzzle,
@@ -23,6 +27,7 @@ import type {
   ReferralDashboard,
   SettingsPayload,
   SupporterRequest,
+  Tournament,
   User,
   UserSearchResult
 } from "@/types/api";
@@ -387,4 +392,81 @@ export const billingApi = {
     apiClient<{ plan: string; entitlements: Record<string, boolean>; limits: Record<string, unknown>; planStatus?: string; planExpiresAt?: string | null; isPremium?: boolean }>(
       "/me/entitlements"
     )
+};
+
+export const tournamentsApi = {
+  list: (status?: string) => {
+    const suffix = status ? `?status=${encodeURIComponent(status)}` : "";
+    return apiClient<{ tournaments: Tournament[] }>(`/tournaments${suffix}`, { preserveSessionOnUnauthorized: true });
+  },
+  detail: (id: string) => apiClient<{ tournament: Tournament }>(`/tournaments/${encodeURIComponent(id)}`, { preserveSessionOnUnauthorized: true }),
+  join: (id: string) =>
+    apiClient<{ message: string; tournament: Tournament }>(`/tournaments/${encodeURIComponent(id)}/join`, {
+      method: "POST"
+    }),
+  leave: (id: string) =>
+    apiClient<{ message: string; tournament: Tournament }>(`/tournaments/${encodeURIComponent(id)}/leave`, {
+      method: "POST"
+    })
+};
+
+export const analysisApi = {
+  note: (gameId: string) => apiClient<{ note: AnalysisNote | null }>(`/analysis/notes/${encodeURIComponent(gameId)}`),
+  saveNote: (input: { gameId?: string; fen?: string; pgn?: string; note?: string }) =>
+    apiClient<{ note: AnalysisNote; message: string }>("/analysis/notes", {
+      method: "POST",
+      body: JSON.stringify(input)
+    }),
+  report: (gameId: string) =>
+    apiClient<{ report: AnalysisReport | null; available: boolean; message: string }>(`/analysis/reports/${encodeURIComponent(gameId)}`),
+  mistakes: (status: "open" | "reviewed" | "dismissed" = "open") =>
+    apiClient<{ items: MistakeReviewItem[] }>(`/mistakes?status=${encodeURIComponent(status)}`),
+  updateMistake: (id: string, status: "open" | "reviewed" | "dismissed") =>
+    apiClient<{ item: MistakeReviewItem }>(`/mistakes/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status })
+    }),
+  coachSession: (input: { fen: string; goal: string }) =>
+    apiClient<{
+      mode: string;
+      engineAvailable: boolean;
+      message: string;
+      coaching: { goal: string; fen: string; nextSteps: string[] };
+    }>("/coach/session", {
+      method: "POST",
+      body: JSON.stringify(input)
+    })
+};
+
+export const openingsApi = {
+  search: (query: string, limit = 15) =>
+    apiClient<{ openings: Opening[]; source: "database" | "static-eco-sample" }>(
+      `/openings/search?q=${encodeURIComponent(query)}&limit=${limit}`,
+      { skipAuth: true }
+    )
+};
+
+export const supportApi = {
+  feedback: (input: { category: "bug" | "feature" | "payment" | "general"; message: string; email?: string; page?: string }) =>
+    apiClient<{ message: string; feedbackId: string }>("/feedback", {
+      method: "POST",
+      preserveSessionOnUnauthorized: true,
+      body: JSON.stringify(input)
+    }),
+  ticket: (input: { type: "general" | "payment" | "refund" | "bug" | "account" | "premium" | "faq"; subject: string; message: string; relatedPaymentReference?: string }) =>
+    apiClient<{ message: string; ticket: unknown }>("/automation/support-ticket", {
+      method: "POST",
+      body: JSON.stringify(input)
+    }),
+  waitlist: (input: { email: string; source?: string; interest?: string }) =>
+    apiClient<{ message: string; duplicate?: boolean }>("/waitlist", {
+      method: "POST",
+      skipAuth: true,
+      body: JSON.stringify(input)
+    }),
+  shareAchievement: (input: { type: string; title: string; description: string }) =>
+    apiClient<{ metadata: { type: string; title: string; description: string; url: string; imageRequired: boolean } }>("/share/achievement", {
+      method: "POST",
+      body: JSON.stringify(input)
+    })
 };
