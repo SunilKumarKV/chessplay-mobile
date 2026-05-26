@@ -10,7 +10,7 @@ Do not start Play Store or App Store production builds until every blocker below
 
 | Blocker | Status | Required Resolution |
 | --- | --- | --- |
-| Legal URLs not live | Blocked | Publish and verify Privacy Policy, Terms, Delete Account, and Support pages. |
+| Legal URLs not live | Closed | Verified live pages are published at the Vercel production URLs. |
 | Physical Android QA pending | Blocked | Complete the Android real-device checklist in `docs/physical-device-qa.md`. |
 | Physical iPhone QA pending | Blocked | Complete the iPhone real-device checklist in `docs/physical-device-qa.md`. |
 | EAS project ID missing | Blocked | Initialize the Expo/EAS project and confirm `extra.eas.projectId` appears in Expo config. |
@@ -20,6 +20,8 @@ Do not start Play Store or App Store production builds until every blocker below
 ## Verify Legal URLs
 
 Run these commands and confirm every response is successful, ideally `HTTP/2 200` or `HTTP/1.1 200 OK`.
+
+Status: live pages verified on May 27, 2026. This environment's shell `curl` connection to Vercel timed out, but browser HTTP fetches loaded all four public routes successfully.
 
 ```bash
 curl -I https://getchessplay.vercel.app/privacy
