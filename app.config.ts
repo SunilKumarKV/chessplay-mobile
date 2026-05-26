@@ -14,7 +14,8 @@ const config: ExpoConfig = {
   updates: {
     enabled: true,
     checkAutomatically: "ON_LOAD",
-    fallbackToCacheTimeout: 0
+    fallbackToCacheTimeout: 0,
+    url: "https://u.expo.dev/e5d94c9e-f47d-4206-bd25-5e48192a5ea2"
   },
   splash: {
     image: "./assets/splash.png",
