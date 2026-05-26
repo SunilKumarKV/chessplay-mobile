@@ -1,7 +1,5 @@
 import type { ExpoConfig } from "expo/config";
 
-const easProjectId = process.env.EAS_PROJECT_ID;
-
 const config: ExpoConfig = {
   name: "ChessPlay",
   slug: "chessplay-mobile",
@@ -80,7 +78,11 @@ const config: ExpoConfig = {
   experiments: {
     typedRoutes: true
   },
-  extra: easProjectId ? { eas: { projectId: easProjectId } } : {}
+  extra: {
+    eas: {
+      projectId: process.env.EAS_PROJECT_ID || "e5d94c9e-f47d-4206-bd25-5e48192a5ea2"
+    }
+  }
 };
 
 export default config;
