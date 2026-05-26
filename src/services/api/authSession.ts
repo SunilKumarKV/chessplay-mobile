@@ -2,6 +2,7 @@ import { api, isApiError } from "@/services/api/client";
 import { clearAuthSession, readAuthSession, saveAuthSession } from "@/services/storage/authStorage";
 import { clearActiveRoomSnapshot } from "@/services/storage/activeRoomStorage";
 import { clearNativePreferences } from "@/services/storage/nativePreferences";
+import { revokeDevicePushToken } from "@/services/native/pushNotifications";
 import { disconnectSocket, setSocketTokenRefreshHandler } from "@/services/socket/socketClient";
 import { useAuthStore } from "@/store/authStore";
 import { useGameStore } from "@/store/gameStore";
@@ -83,6 +84,7 @@ export async function refreshMobileTokens(refreshTokenOverride?: string | null) 
 }
 
 export async function clearMobileSession() {
+  await revokeDevicePushToken().catch(() => undefined);
   disconnectSocket();
   await clearActiveRoomSnapshot();
   await clearNativePreferences();

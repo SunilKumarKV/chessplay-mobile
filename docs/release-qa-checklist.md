@@ -11,12 +11,32 @@
 - No localhost, staging Render URL, private key, database URL, or server secret is committed.
 - `app.config.ts` uses package and bundle id `com.devwithsunil.chessplay`.
 - EAS project id is configured with `npx eas init` before collecting push tokens in production builds.
+- Optional monitoring uses `EXPO_PUBLIC_SENTRY_DSN`; the app must continue safely when it is blank.
+
+## Release Blocker Summary
+
+Current go/no-go status: **NO-GO until legal URLs and physical-device QA are complete**.
+
+Closed blockers:
+
+- Backend mobile push token registration endpoint exists at `POST /api/notifications/device-token`.
+- Backend mobile push token revoke endpoint exists at `DELETE /api/notifications/device-token`.
+- Mobile registers Expo push tokens after login/session restore when permission is granted.
+- Mobile revokes the stored device token during logout/session clearing.
+- Error monitoring configuration is environment-based and does not hardcode a DSN.
+
+Still blocked:
+
+- Final public Privacy Policy, Terms, Delete Account, and Support URLs are not verified live. See [legal-url-checklist.md](legal-url-checklist.md).
+- Android and iPhone physical-device QA must pass. See [physical-device-qa.md](physical-device-qa.md).
+- Production EAS project id and credentials must be configured before production push token collection/builds.
 
 ## Android Store Readiness
 
 - App Bundle is built with `npx eas build -p android --profile production`.
 - Placeholder icon, adaptive icon, and splash are replaced or explicitly approved for v1.0.0.
 - Play Console privacy policy URL is live.
+- Terms, support, and account deletion URLs are live.
 - Data Safety form matches final backend behavior.
 - Account deletion URL or in-app deletion flow is live.
 - Internal testing passes on at least two Android devices.
@@ -61,6 +81,7 @@
 - Password reset and email verification deep links show graceful pending-support messaging if backend completion is not available.
 - Push permission is requested only after login.
 - Expo push token collection fails gracefully without an EAS project id.
+- Expo push token registration and logout revocation call `/api/notifications/device-token`.
 - Accessibility labels exist for buttons, inputs, and board squares.
 
 ## Final Smoke Test

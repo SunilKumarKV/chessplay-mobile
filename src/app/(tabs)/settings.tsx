@@ -10,7 +10,7 @@ import { ErrorState, LoadingState } from "@/components/StateView";
 import { api, settingsApi } from "@/services/api/client";
 import { clearMobileSession } from "@/services/api/authSession";
 import { canUseBiometricUnlock } from "@/services/native/biometricUnlock";
-import { getExpoPushTokenAfterLogin } from "@/services/native/pushNotifications";
+import { registerDevicePushTokenAfterLogin } from "@/services/native/pushNotifications";
 import { readBiometricUnlockEnabled, saveBiometricUnlockEnabled } from "@/services/storage/nativePreferences";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -126,8 +126,8 @@ export default function SettingsScreen() {
           label="Prepare push token"
           variant="secondary"
           onPress={() => {
-            getExpoPushTokenAfterLogin()
-              .then((result) => setPushStatus(result.status === "registered" ? "Expo push token collected locally. Backend registration endpoint is still required." : result.message))
+            registerDevicePushTokenAfterLogin()
+              .then((result) => setPushStatus(result.status === "registered" ? "Expo push token registered for this device." : result.message))
               .catch((error) => setPushStatus(error.message));
           }}
         />
@@ -268,7 +268,9 @@ export default function SettingsScreen() {
         <AppText variant="subtitle">Legal and account</AppText>
         <AppText muted>Privacy policy and account deletion requests must point to production support URLs before store submission.</AppText>
         <Button label="Privacy policy" variant="secondary" onPress={() => Linking.openURL("https://getchessplay.com/privacy")} />
+        <Button label="Terms of service" variant="secondary" onPress={() => Linking.openURL("https://getchessplay.com/terms")} />
         <Button label="Request account deletion" variant="secondary" onPress={() => Linking.openURL("https://getchessplay.com/support/delete-account")} />
+        <Button label="Contact support" variant="secondary" onPress={() => Linking.openURL("https://getchessplay.com/support")} />
       </Card>
       <Button label="Log out" variant="danger" onPress={() => Alert.alert("Log out", "End this mobile session?", [{ text: "Cancel" }, { text: "Log out", onPress: logout }])} />
     </Screen>

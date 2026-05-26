@@ -8,7 +8,7 @@ import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import { restoreMobileSession } from "@/services/api/authSession";
 import { authenticateIfBiometricEnabled } from "@/services/native/biometricUnlock";
 import { handleInitialDeepLink, subscribeToDeepLinks } from "@/services/native/deepLinks";
-import { getExpoPushTokenAfterLogin } from "@/services/native/pushNotifications";
+import { registerDevicePushTokenAfterLogin } from "@/services/native/pushNotifications";
 import { recoverActiveGame } from "@/services/socket/rejoinActiveGame";
 import { disconnectSocket } from "@/services/socket/socketClient";
 import { useAuthStore } from "@/store/authStore";
@@ -64,7 +64,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (!user?.id || pushPreparedForUser.current === user.id) return;
     pushPreparedForUser.current = user.id;
-    getExpoPushTokenAfterLogin()
+    registerDevicePushTokenAfterLogin()
       .then((result) => {
         if (result.status === "missing-project-id") useAuthStore.getState().setAuthError(result.message);
       })

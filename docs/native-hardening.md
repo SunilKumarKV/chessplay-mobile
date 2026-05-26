@@ -8,7 +8,7 @@
 - Biometric unlock: optional local app unlock is available after login when the device has supported biometrics enrolled.
 - Foreground/background handling: the app rechecks active rooms on foreground and disconnects stale sockets when no live room is active.
 - Offline banner: network state is checked with Expo Network and shown alongside retry/error messaging.
-- Push preparation: notification permission is requested only after login or from Settings. Expo push tokens are collected only on physical devices with an EAS project id.
+- Push registration: notification permission is requested only after login or from Settings. Expo push tokens are collected only on physical devices with an EAS project id and registered through `POST /api/notifications/device-token`.
 - Error boundary: the root layout catches unexpected render errors and provides a restart-safe fallback surface.
 - Board performance: chess squares are memoized and expose stable accessibility labels.
 - Accessibility: shared buttons and text fields expose labels, and board squares are screen-reader discoverable.
@@ -22,27 +22,40 @@
 | `chessplay://reset-password?...` | Opens the forgot-password flow with a clear pending-support message. | Mobile reset completion endpoint still needed. |
 | `chessplay://verify-email?...` | Opens login with a clear pending-support message. | Mobile email verification completion endpoint still needed. |
 
-## Push Notification Backend Gap
+## Push Notification Backend Contract
 
-The mobile app can collect Expo push tokens, but it does not send them to the backend because no production endpoint is confirmed.
+The mobile app registers and revokes Expo push tokens, but push delivery is still intentionally disabled until server-side notification jobs are implemented.
 
-Required backend endpoint:
+Implemented registration endpoint:
 
 ```http
-POST /api/mobile/push-token
+POST /api/notifications/device-token
 Authorization: Bearer <accessToken>
 Content-Type: application/json
 
 {
   "token": "ExponentPushToken[...]",
-  "platform": "android" | "ios",
-  "deviceId": "optional-installation-id"
+  "platform": "ios" | "android",
+  "deviceId": "stable-mobile-install-id",
+  "appVersion": "1.0.0"
 }
 ```
 
-Recommended companion endpoints:
+Implemented revoke endpoint:
 
-- `DELETE /api/mobile/push-token` to unregister on logout.
+```http
+DELETE /api/notifications/device-token
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+
+{
+  "token": "ExponentPushToken[...]",
+  "deviceId": "stable-mobile-install-id"
+}
+```
+
+Remaining notification delivery gaps:
+
 - `GET /api/mobile/notifications/preferences` if notification settings diverge from `/settings/me`.
 - Server-side delivery for game invites, move reminders, friend requests, messages, tournaments, and account security alerts.
 
@@ -77,6 +90,6 @@ Do not commit private auth tokens or server-side monitoring secrets.
 ## Remaining Native Release Blockers
 
 - Replace placeholder privacy/support/delete-account URLs with live production pages.
-- Add a backend push-token registration endpoint before enabling push delivery.
-- Add production error monitoring if required by release policy.
+- Add production error monitoring SDK wiring if required by release policy.
+- Implement server-side push delivery jobs if push notifications are part of the v1 launch.
 - Run physical-device QA on at least one Android phone and one iPhone before store submission.

@@ -3,6 +3,7 @@ import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Screen } from "@/components/Screen";
+import { MONITORING_ENABLED } from "@/constants/monitoring";
 
 type Props = { children: ReactNode };
 type State = { error: Error | null };
@@ -24,7 +25,7 @@ export class AppErrorBoundary extends Component<Props, State> {
       <Screen>
         <Card>
           <AppText variant="title">Something went wrong</AppText>
-          <AppText muted>The app hit an unexpected error. No crash reporting DSN is configured in this build.</AppText>
+          <AppText muted>{MONITORING_ENABLED ? "The app hit an unexpected error. Monitoring is configured for this build." : "The app hit an unexpected error. No crash reporting DSN is configured in this build."}</AppText>
           <Button label="Try again" onPress={() => this.setState({ error: null })} />
         </Card>
       </Screen>
