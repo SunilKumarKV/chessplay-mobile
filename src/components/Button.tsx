@@ -4,13 +4,14 @@ import { useThemeColors } from "@/hooks/useThemeColors";
 
 type Props = {
   label: string;
+  accessibilityLabel?: string;
   onPress?: () => void;
   variant?: "primary" | "secondary" | "danger";
   loading?: boolean;
   disabled?: boolean;
 };
 
-export function Button({ label, onPress, variant = "primary", loading, disabled }: Props) {
+export function Button({ label, accessibilityLabel, onPress, variant = "primary", loading, disabled }: Props) {
   const colors = useThemeColors();
   const backgroundColor =
     variant === "primary" ? colors.primary : variant === "danger" ? colors.danger : colors.surfaceMuted;
@@ -19,6 +20,7 @@ export function Button({ label, onPress, variant = "primary", loading, disabled 
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel || label}
       disabled={disabled || loading}
       onPress={onPress}
       style={({ pressed }) => [
@@ -35,4 +37,3 @@ const styles = StyleSheet.create({
   button: { minHeight: 48, borderRadius: 8, alignItems: "center", justifyContent: "center", paddingHorizontal: 16 },
   label: { fontWeight: "800" }
 });
-

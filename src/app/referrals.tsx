@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Alert, Share, StyleSheet, View } from "react-native";
+import { Alert, StyleSheet, View } from "react-native";
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -8,6 +8,7 @@ import { Screen } from "@/components/Screen";
 import { EmptyState, ErrorState, LoadingState } from "@/components/StateView";
 import { TextField } from "@/components/TextField";
 import { billingApi } from "@/services/api/client";
+import { shareReferralInvite } from "@/services/native/share";
 
 const WEB_ORIGIN = "https://getchessplay.com";
 
@@ -26,11 +27,7 @@ export default function ReferralsScreen() {
 
   async function shareReferral() {
     if (!query.data?.code) return;
-    const url = `${WEB_ORIGIN}${query.data.linkPath || `/register?ref=${query.data.code}`}`;
-    await Share.share({
-      title: "Join ChessPlay",
-      message: `Join me on ChessPlay: ${url}`
-    });
+    await shareReferralInvite({ code: query.data.code, linkPath: query.data.linkPath });
   }
 
   return (

@@ -20,7 +20,7 @@ Analytics and crash reporting are not finalized in the mobile app. If analytics 
 
 ## Push Notification Placeholder
 
-Push notifications are not fully implemented yet. If enabled, ChessPlay may store device push tokens to send account, game, message, friend, or tournament notifications.
+The mobile app can request notification permission after login and collect an Expo push token on physical devices. Push delivery is not enabled until the backend stores tokens and sends notifications. If enabled, ChessPlay may store device push tokens to send account, game, message, friend, or tournament notifications.
 
 ## Contact And Support Placeholder
 
@@ -30,5 +30,8 @@ Website: replace with production website URL.
 
 ## Deletion Request Placeholder
 
-Users should be able to request account deletion. Replace this section with the production deletion process, expected timelines, and whether deletion can be initiated in-app or through support.
+Users should be able to request account deletion from the app Settings screen or through support. Replace this section with the production deletion URL, expected timelines, data retained for legal/security reasons, and whether deletion can be initiated directly in-app or through support review.
 
+## Native Device Features Placeholder
+
+ChessPlay mobile may use device features such as biometric authentication for local app unlock, native sharing for room/profile/result links, and deep links for room invites, profiles, password reset, and email verification. Biometric data is handled by the operating system and is not sent to ChessPlay servers.

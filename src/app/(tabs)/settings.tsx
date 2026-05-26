@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
-import { useEffect } from "react";
-import { Alert, Pressable, StyleSheet, Switch, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Alert, Linking, Pressable, StyleSheet, Switch, View } from "react-native";
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -9,6 +9,9 @@ import { Screen } from "@/components/Screen";
 import { ErrorState, LoadingState } from "@/components/StateView";
 import { api, settingsApi } from "@/services/api/client";
 import { clearMobileSession } from "@/services/api/authSession";
+import { canUseBiometricUnlock } from "@/services/native/biometricUnlock";
+import { getExpoPushTokenAfterLogin } from "@/services/native/pushNotifications";
+import { readBiometricUnlockEnabled, saveBiometricUnlockEnabled } from "@/services/storage/nativePreferences";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import type { SettingsPayload } from "@/types/api";
@@ -21,6 +24,9 @@ const BOARD_THEMES = ["classic", "tournamentGreen", "neonDark", "wooden", "marbl
 
 export default function SettingsScreen() {
   const { theme, setTheme, soundEffects, setSoundEffects } = useSettingsStore();
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [pushStatus, setPushStatus] = useState<string | null>(null);
   const clearSession = useAuthStore((state) => state.clearSession);
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: ["settings", "me"], queryFn: settingsApi.me });
@@ -42,6 +48,15 @@ export default function SettingsScreen() {
     if (remoteTheme === "dark" || remoteTheme === "light") setTheme(remoteTheme);
     if (typeof remote.gameplay?.soundEffects === "boolean") setSoundEffects(remote.gameplay.soundEffects);
   }, [query.data, setSoundEffects, setTheme]);
+
+  useEffect(() => {
+    Promise.all([canUseBiometricUnlock(), readBiometricUnlockEnabled()])
+      .then(([available, enabled]) => {
+        setBiometricAvailable(available);
+        setBiometricEnabled(enabled);
+      })
+      .catch(() => undefined);
+  }, []);
 
   async function logout() {
     try {
@@ -107,6 +122,16 @@ export default function SettingsScreen() {
             onValueChange={(value) => mergeSettings({ notifications: { [key]: value } })}
           />
         ))}
+        <Button
+          label="Prepare push token"
+          variant="secondary"
+          onPress={() => {
+            getExpoPushTokenAfterLogin()
+              .then((result) => setPushStatus(result.status === "registered" ? "Expo push token collected locally. Backend registration endpoint is still required." : result.message))
+              .catch((error) => setPushStatus(error.message));
+          }}
+        />
+        {pushStatus ? <AppText variant="caption" muted>{pushStatus}</AppText> : null}
       </Card>
 
       <Card>
@@ -155,6 +180,22 @@ export default function SettingsScreen() {
             mergeSettings({ gameplay: { soundEffects: value } });
           }}
         />
+      </Card>
+
+      <Card>
+        <AppText variant="subtitle">Security</AppText>
+        <ToggleRow
+          label="Biometric app unlock"
+          value={biometricEnabled}
+          disabled={!biometricAvailable}
+          onValueChange={(value) => {
+            setBiometricEnabled(value);
+            saveBiometricUnlockEnabled(value).catch(() => undefined);
+          }}
+        />
+        <AppText variant="caption" muted>
+          {biometricAvailable ? "Biometric unlock protects app foreground access on this device." : "Biometric unlock is unavailable until this device has supported biometrics enrolled."}
+        </AppText>
       </Card>
 
       {mutation.isPending ? <AppText muted>Saving...</AppText> : null}
@@ -223,16 +264,22 @@ export default function SettingsScreen() {
         <AppText variant="subtitle">Network</AppText>
         <AppText muted>Production API and Socket.IO URLs are loaded from public Expo environment variables.</AppText>
       </Card>
+      <Card>
+        <AppText variant="subtitle">Legal and account</AppText>
+        <AppText muted>Privacy policy and account deletion requests must point to production support URLs before store submission.</AppText>
+        <Button label="Privacy policy" variant="secondary" onPress={() => Linking.openURL("https://getchessplay.com/privacy")} />
+        <Button label="Request account deletion" variant="secondary" onPress={() => Linking.openURL("https://getchessplay.com/support/delete-account")} />
+      </Card>
       <Button label="Log out" variant="danger" onPress={() => Alert.alert("Log out", "End this mobile session?", [{ text: "Cancel" }, { text: "Log out", onPress: logout }])} />
     </Screen>
   );
 }
 
-function ToggleRow({ label, value, onValueChange }: { label: string; value: boolean; onValueChange: (value: boolean) => void }) {
+function ToggleRow({ label, value, disabled, onValueChange }: { label: string; value: boolean; disabled?: boolean; onValueChange: (value: boolean) => void }) {
   return (
     <View style={styles.row}>
       <AppText>{label}</AppText>
-      <Switch value={value} onValueChange={onValueChange} />
+      <Switch value={value} disabled={disabled} onValueChange={onValueChange} />
     </View>
   );
 }

@@ -33,6 +33,8 @@ Review the final backend behavior before submission. Current expected disclosure
 - App activity: gameplay events and diagnostics if analytics are enabled later.
 - Device identifiers: only if analytics, crash reporting, or push notifications are enabled.
 - Data deletion: document the deletion request flow and backend endpoint.
+- Native sharing/deep links: disclose only if final policy form asks about external links or user-generated shared content.
+- Biometrics: local device-only app unlock; biometric data is not collected by ChessPlay.
 - Encryption in transit: yes, production API uses HTTPS/WSS.
 
 Push notifications and analytics are placeholders until backend/product decisions are complete.
@@ -67,7 +69,8 @@ The production profile emits an Android App Bundle (`.aab`).
 4. Verify auth, session restore, online play, profile, settings, social, and puzzle flows.
 5. Verify no localhost endpoints are present.
 6. Verify support/privacy links.
-7. Promote only after internal testing passes on at least two Android devices.
+7. Verify account deletion link in Settings.
+8. Promote only after internal testing passes on at least two Android devices.
 
 ## Production Rollout Steps
 
@@ -79,4 +82,3 @@ The production profile emits an Android App Bundle (`.aab`).
 6. Start with staged rollout, for example 5-10%.
 7. Monitor crashes, login failures, socket errors, and backend rate limits.
 8. Expand rollout after stability checks.
-

@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { Alert, Share, StyleSheet, View } from "react-native";
+import { Alert, StyleSheet, View } from "react-native";
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -12,6 +12,7 @@ import { describeGameStatus, fenFromSocketGame, normalizeMoveRecord, squareToBac
 import { backendOpponent, isBackendMoveLegal } from "@/features/chess/backendChessAdapter";
 import { LiveRoomChat } from "@/features/multiplayer/LiveRoomChat";
 import { clearActiveRoomSnapshot } from "@/services/storage/activeRoomStorage";
+import { shareRoomInvite } from "@/services/native/share";
 import { emitSocket } from "@/services/socket/socketClient";
 import { useAuthStore } from "@/store/authStore";
 import { useGameStore } from "@/store/gameStore";
@@ -89,7 +90,7 @@ export default function LiveGameScreen() {
 
   function shareRoom() {
     if (!liveRoom) return;
-    Share.share({ message: `Join my ChessPlay room: ${liveRoom.roomId}` }).catch(() => undefined);
+    shareRoomInvite(liveRoom.roomId).catch(() => undefined);
   }
 
   return (

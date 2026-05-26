@@ -1,6 +1,6 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Modal, Share, StyleSheet, View } from "react-native";
+import { Alert, Modal, StyleSheet, View } from "react-native";
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -15,6 +15,7 @@ import { describeGameStatus, fenFromSocketGame, normalizeMoveRecord, squareToBac
 import { applyBackendMove, backendOpponent, createInitialBackendGameState } from "@/features/chess/backendChessAdapter";
 import type { BackendColor, BackendSocketGameState } from "@/features/chess/backendChessAdapter";
 import { readActiveRoomSnapshot } from "@/services/storage/activeRoomStorage";
+import { shareRoomInvite } from "@/services/native/share";
 import {
   DEFAULT_LOCAL_GAME_PREFERENCES,
   readLocalGamePreferences,
@@ -112,6 +113,7 @@ function cloneClock(clock: ClockState): ClockState {
 
 export default function PlayScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ roomCode?: string }>();
   const [localGameState, setLocalGameState] = useState(() => createInitialBackendGameState());
   const [localClock, setLocalClock] = useState<ClockState>(() => createLocalClock(null));
   const [localHistory, setLocalHistory] = useState<LocalSnapshot[]>([]);
@@ -225,7 +227,7 @@ export default function PlayScreen() {
   }
 
   function shareRoomCode(roomId: string) {
-    Share.share({ message: `Join my ChessPlay room: ${roomId}` }).catch(() => undefined);
+    shareRoomInvite(roomId).catch(() => undefined);
   }
 
   function updateLocalPreferences(patch: Partial<LocalGamePreferences>) {
@@ -333,6 +335,12 @@ export default function PlayScreen() {
   useEffect(() => {
     if (liveRoom) router.replace("/game/live");
   }, [liveRoom, router]);
+
+  useEffect(() => {
+    if (typeof params.roomCode === "string") {
+      setRoomCode(params.roomCode.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6));
+    }
+  }, [params.roomCode]);
 
   useEffect(() => {
     readActiveRoomSnapshot()

@@ -7,6 +7,7 @@ import { Screen } from "@/components/Screen";
 import { describeGameStatus, fenFromSocketGame } from "@/features/chess/chessState";
 import { backendOpponent } from "@/features/chess/backendChessAdapter";
 import { clearActiveRoomSnapshot } from "@/services/storage/activeRoomStorage";
+import { shareGameResult } from "@/services/native/share";
 import { useGameStore } from "@/store/gameStore";
 import type { PlayerColor } from "@/types/chess";
 
@@ -67,6 +68,7 @@ export default function ResultScreen() {
           </View>
         ) : null}
       </Card>
+      <Button label="Share result" variant="secondary" onPress={() => shareGameResult({ title: resultTitle, roomId: liveRoom?.roomId, winner: winnerName })} />
       <Button label="Back to play" onPress={done} />
     </Screen>
   );

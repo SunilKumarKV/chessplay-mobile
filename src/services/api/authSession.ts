@@ -1,6 +1,7 @@
 import { api, isApiError } from "@/services/api/client";
 import { clearAuthSession, readAuthSession, saveAuthSession } from "@/services/storage/authStorage";
 import { clearActiveRoomSnapshot } from "@/services/storage/activeRoomStorage";
+import { clearNativePreferences } from "@/services/storage/nativePreferences";
 import { disconnectSocket, setSocketTokenRefreshHandler } from "@/services/socket/socketClient";
 import { useAuthStore } from "@/store/authStore";
 import { useGameStore } from "@/store/gameStore";
@@ -84,6 +85,7 @@ export async function refreshMobileTokens(refreshTokenOverride?: string | null) 
 export async function clearMobileSession() {
   disconnectSocket();
   await clearActiveRoomSnapshot();
+  await clearNativePreferences();
   await clearAuthSession();
   useGameStore.getState().setLiveRoom(null);
   useAuthStore.getState().clearSession();

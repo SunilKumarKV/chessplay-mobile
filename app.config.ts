@@ -27,7 +27,10 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.devwithsunil.chessplay",
-    buildNumber: "1"
+    buildNumber: "1",
+    infoPlist: {
+      NSFaceIDUsageDescription: "Allow ChessPlay to unlock the app with Face ID."
+    }
   },
   android: {
     adaptiveIcon: {
@@ -36,7 +39,15 @@ const config: ExpoConfig = {
     },
     package: "com.devwithsunil.chessplay",
     versionCode: 1,
-    edgeToEdgeEnabled: true
+    edgeToEdgeEnabled: true,
+    intentFilters: [
+      {
+        action: "VIEW",
+        autoVerify: false,
+        data: [{ scheme: "chessplay" }],
+        category: ["BROWSABLE", "DEFAULT"]
+      }
+    ]
   },
   web: {
     favicon: "./assets/favicon.png"
@@ -45,6 +56,18 @@ const config: ExpoConfig = {
     "expo-router",
     "expo-secure-store",
     "expo-splash-screen",
+    [
+      "expo-notifications",
+      {
+        color: "#2563EB"
+      }
+    ],
+    [
+      "expo-local-authentication",
+      {
+        faceIDPermission: "Allow ChessPlay to unlock the app with Face ID."
+      }
+    ],
     [
       "expo-image-picker",
       {

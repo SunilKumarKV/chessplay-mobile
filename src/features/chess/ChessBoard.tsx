@@ -1,5 +1,5 @@
 import { Chess, type Square as ChessSquare } from "chess.js";
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
@@ -13,6 +13,7 @@ import {
   validateBackendBoard
 } from "@/features/chess/backendChessAdapter";
 import { useThemeColors } from "@/hooks/useThemeColors";
+import { playHaptic } from "@/services/native/haptics";
 import type { SocketGameState } from "@/types/chess";
 import type { LocalBoardTheme } from "@/services/storage/localGameStorage";
 
@@ -31,6 +32,63 @@ const pieceSymbols: Record<string, string> = {
   bq: "\u265B",
   bk: "\u265A"
 };
+
+type BoardSquareProps = {
+  square: ChessSquare;
+  squareSize: number;
+  backgroundColor: string;
+  piece: { color: "w" | "b"; type: string } | null;
+  isLastMove: boolean;
+  isCheckedKing: boolean;
+  isSelected: boolean;
+  isLegal: boolean;
+  highlightColor: string;
+  dangerColor: string;
+  lastMoveColor: string;
+  onPress: (square: ChessSquare) => void;
+};
+
+const BoardSquare = memo(function BoardSquare({
+  square,
+  squareSize,
+  backgroundColor,
+  piece,
+  isLastMove,
+  isCheckedKing,
+  isSelected,
+  isLegal,
+  highlightColor,
+  dangerColor,
+  lastMoveColor,
+  onPress
+}: BoardSquareProps) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${square}${piece ? ` ${piece.color === "w" ? "white" : "black"} ${piece.type}` : ""}`}
+      key={square}
+      onPress={() => onPress(square)}
+      style={[
+        styles.square,
+        {
+          width: squareSize,
+          height: squareSize,
+          backgroundColor
+        }
+      ]}
+    >
+      {isLastMove ? <View style={[styles.lastMove, { backgroundColor: lastMoveColor }]} /> : null}
+      {isCheckedKing ? <View style={[styles.check, { borderColor: dangerColor }]} /> : null}
+      {isSelected ? <View style={[styles.selection, { borderColor: highlightColor }]} /> : null}
+      {isLegal ? <View style={[styles.dot, { backgroundColor: highlightColor }]} /> : null}
+      {piece ? (
+        <AppText style={[styles.piece, { fontSize: squareSize * 0.58, color: piece.color === "w" ? "#F8FAFC" : "#111827" }]}>
+          {pieceSymbols[`${piece.color}${piece.type}`]}
+        </AppText>
+      ) : null}
+    </Pressable>
+  );
+});
 
 type Props = {
   fen: string;
@@ -90,13 +148,17 @@ export function ChessBoard({
     setPromotion(null);
   }, [disabled, fen, gameState?.turn, gameState?.status]);
 
+  useEffect(() => {
+    if (checkedKingSquare) playHaptic("check");
+  }, [checkedKingSquare]);
+
   function pieceAt(square: ChessSquare) {
     if (backendBoard) {
       const { row, col } = algebraicToBackendRowCol(square);
       const piece = backendBoard[row][col];
       return piece ? { color: backendPieceColor(piece), type: piece[1].toLowerCase() } : null;
     }
-    return chess.get(square);
+    return chess.get(square) ?? null;
   }
 
   function canSelectPiece(square: ChessSquare) {
@@ -112,29 +174,36 @@ export function ChessBoard({
     const piece = pieceAt(square);
     if (selected && legalTargets.has(square)) {
       const selectedPiece = pieceAt(selected);
+      const isCapture = Boolean(piece);
       const { row: toRow } = algebraicToBackendRowCol(square);
       const backendPromotion = selectedPiece?.type === "p" && (toRow === 0 || toRow === 7);
       const chessPromotion = !backendBoard && chess.moves({ square: selected, verbose: true }).some((candidate) => candidate.to === square && candidate.promotion);
       if (backendPromotion || chessPromotion) {
+        playHaptic("move");
         setPromotion({ from: selected, to: square });
         return;
       }
+      playHaptic(isCapture ? "capture" : "move");
       onMove?.(selected, square);
       setSelected(null);
       return;
     }
     if (selected && selected !== square && !canSelectPiece(square)) {
+      playHaptic("illegal");
       onInvalidSelection?.("That move is not legal in the current position.");
       setSelected(null);
       return;
     }
     if (canSelectPiece(square)) {
+      playHaptic("move");
       setSelected(square);
       return;
     }
     if (piece && allowedColor !== "both" && piece.color !== allowedColor) {
+      playHaptic("illegal");
       onInvalidSelection?.("You can only move your own pieces.");
     } else if (piece && piece.color !== (backendBoard ? gameState?.turn || "w" : chess.turn())) {
+      playHaptic("illegal");
       onInvalidSelection?.("It is not that side's turn.");
     }
     setSelected(null);
@@ -153,28 +222,21 @@ export function ChessBoard({
             const isLastMove = lastMove?.from === square || lastMove?.to === square;
             const isCheckedKing = checkedKingSquare === square;
             return (
-              <Pressable
+              <BoardSquare
                 key={square}
-                onPress={() => handlePress(square)}
-                style={[
-                  styles.square,
-                  {
-                    width: squareSize,
-                    height: squareSize,
-                    backgroundColor: isDark ? boardPalette.dark : boardPalette.light
-                  }
-                ]}
-              >
-                {isLastMove ? <View style={[styles.lastMove, { backgroundColor: boardPalette.lastMove }]} /> : null}
-                {isCheckedKing ? <View style={[styles.check, { borderColor: colors.danger }]} /> : null}
-                {isSelected ? <View style={[styles.selection, { borderColor: colors.highlight }]} /> : null}
-                {isLegal ? <View style={[styles.dot, { backgroundColor: colors.highlight }]} /> : null}
-                {piece ? (
-                  <AppText style={[styles.piece, { fontSize: squareSize * 0.58, color: piece.color === "w" ? "#F8FAFC" : "#111827" }]}>
-                    {pieceSymbols[`${piece.color}${piece.type}`]}
-                  </AppText>
-                ) : null}
-              </Pressable>
+                square={square}
+                squareSize={squareSize}
+                backgroundColor={isDark ? boardPalette.dark : boardPalette.light}
+                piece={piece}
+                isLastMove={isLastMove}
+                isCheckedKing={isCheckedKing}
+                isSelected={isSelected}
+                isLegal={isLegal}
+                highlightColor={colors.highlight}
+                dangerColor={colors.danger}
+                lastMoveColor={boardPalette.lastMove}
+                onPress={handlePress}
+              />
             );
           })
         )}

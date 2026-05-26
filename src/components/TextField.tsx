@@ -3,8 +3,10 @@ import { useThemeColors } from "@/hooks/useThemeColors";
 
 export function TextField(props: TextInputProps) {
   const colors = useThemeColors();
+  const accessibilityLabel = props.accessibilityLabel || (typeof props.placeholder === "string" ? props.placeholder : undefined);
   return (
     <TextInput
+      accessibilityLabel={accessibilityLabel}
       placeholderTextColor={colors.textMuted}
       autoCapitalize="none"
       {...props}
@@ -20,4 +22,3 @@ export function TextField(props: TextInputProps) {
 const styles = StyleSheet.create({
   input: { minHeight: 50, borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, fontSize: 16 }
 });
-

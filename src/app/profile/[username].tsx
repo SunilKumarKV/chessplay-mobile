@@ -7,6 +7,7 @@ import { Card } from "@/components/Card";
 import { Screen } from "@/components/Screen";
 import { EmptyState, ErrorState, LoadingState } from "@/components/StateView";
 import { messagesApi, profileApi } from "@/services/api/client";
+import { shareProfile } from "@/services/native/share";
 import { useThemeColors } from "@/hooks/useThemeColors";
 
 export default function PublicProfileScreen() {
@@ -46,6 +47,7 @@ export default function PublicProfileScreen() {
             </View>
             <AppText muted>{profile.bio || "No public bio."}</AppText>
             <Button label="Message" onPress={startConversation} />
+            <Button label="Share profile" variant="secondary" onPress={() => shareProfile(profile.username)} />
           </Card>
 
           <Card>
