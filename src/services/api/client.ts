@@ -3,11 +3,15 @@ import { clearAuthSession, saveAuthSession } from "@/services/storage/authStorag
 import { useAuthStore } from "@/store/authStore";
 import type {
   AuthResponse,
+  BillingPlan,
+  BillingState,
   CommunityPost,
   Conversation,
   Friend,
   FriendRequest,
   Message,
+  PaymentIntent,
+  PaymentMethod,
   Profile,
   PublicRoom,
   Puzzle,
@@ -16,7 +20,9 @@ import type {
   PuzzleLearning,
   PuzzleLimits,
   PuzzleStats,
+  ReferralDashboard,
   SettingsPayload,
+  SupporterRequest,
   User,
   UserSearchResult
 } from "@/types/api";
@@ -328,4 +334,57 @@ export const communityApi = {
       method: "POST",
       body: JSON.stringify({ type: "public", roomKey })
     })
+};
+
+export const billingApi = {
+  plans: () =>
+    apiClient<{
+      currency: string;
+      upiId?: string;
+      merchantName?: string;
+      plans: Record<string, BillingPlan>;
+      paymentMethods: { india: PaymentMethod[]; global: PaymentMethod[]; manualFallback?: { enabled: boolean; label: string } };
+      support?: { contactEmail?: string; manualVerification?: boolean; message?: string };
+      adNetworks?: { web?: string[]; mobileLater?: string[] };
+    }>("/billing/plans", { skipAuth: true }),
+  paymentMethods: (plan: string) =>
+    apiClient<{ plan: string; methods: { india: PaymentMethod[]; global: PaymentMethod[]; manualFallback?: { enabled: boolean; label: string } } }>(
+      `/billing/payment-methods?plan=${encodeURIComponent(plan)}`,
+      { skipAuth: true }
+    ),
+  me: () =>
+    apiClient<{ billing: BillingState; requests: SupporterRequest[]; intents: PaymentIntent[]; referralCode?: string | null }>("/billing/me"),
+  monetization: () =>
+    apiClient<{
+      billing: BillingState;
+      ads: { enabled: boolean; placements: string[]; networks: { web?: string[]; mobileLater?: string[] } };
+      premiumUnlocks: string[];
+    }>("/billing/monetization"),
+  submitSupporterRequest: (input: {
+    plan: string;
+    paymentMethod: "upi" | "bank" | "paypal";
+    amount: number;
+    upiId?: string;
+    utr?: string;
+    bankReference?: string;
+    payerEmail?: string;
+    providerReference?: string;
+    paymentProofUrl?: string;
+    paymentDate?: string;
+    note?: string;
+  }) =>
+    apiClient<{ message: string; request: SupporterRequest }>("/billing/upi-request", {
+      method: "POST",
+      body: JSON.stringify(input)
+    }),
+  referrals: () => apiClient<ReferralDashboard>("/referrals/me"),
+  claimReferral: (code: string) =>
+    apiClient<{ message: string }>("/referrals/claim", {
+      method: "POST",
+      body: JSON.stringify({ code })
+    }),
+  entitlements: () =>
+    apiClient<{ plan: string; entitlements: Record<string, boolean>; limits: Record<string, unknown>; planStatus?: string; planExpiresAt?: string | null; isPremium?: boolean }>(
+      "/me/entitlements"
+    )
 };

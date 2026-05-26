@@ -61,10 +61,16 @@ export default function ProfileScreen() {
                 <AppText muted>
                   {data.title || data.selectedBadge || "ChessPlay player"} · {data.country || "No country"}
                 </AppText>
+                <AppText variant="caption" muted>{data.isPremium || data.isSupporter ? "Supporter badge active" : "Free account"}</AppText>
                 <AppText muted>Joined {data.joinedAt ? new Date(data.joinedAt).toLocaleDateString() : "recently"}</AppText>
               </View>
             </View>
             <AppText muted>{data.bio || "No bio yet."}</AppText>
+            <Link href={"/billing" as never} asChild>
+              <Pressable>
+                <Button label="Billing status" variant="secondary" />
+              </Pressable>
+            </Link>
           </Card>
 
           <Card>

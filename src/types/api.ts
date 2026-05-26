@@ -240,6 +240,112 @@ export type FriendRequest = {
 
 export type UserSearchResult = Friend;
 
+export type BillingPlan = {
+  label: string;
+  amount: number;
+  usdAmount: number;
+  days: number;
+  benefits: string[];
+  entitlements?: Record<string, boolean>;
+};
+
+export type PaymentMethod = {
+  id: "upi" | "qr" | "bank" | "paypal" | string;
+  label: string;
+  amount?: number;
+  currency?: string;
+  configured?: boolean;
+  upiId?: string;
+  merchantName?: string;
+  qrUrl?: string;
+  checkoutUrl?: string;
+  paypalEmail?: string;
+  bank?: {
+    accountName?: string;
+    accountNumber?: string;
+    ifsc?: string;
+    bankName?: string;
+  };
+};
+
+export type BillingState = {
+  plan: string;
+  planStatus: string;
+  planStartedAt?: string | null;
+  planExpiresAt?: string | null;
+  isSupporter: boolean;
+  isPremium: boolean;
+  supporterSince?: string | null;
+  supporterPlan?: string;
+  supporterExpiresAt?: string | null;
+  adsDisabled: boolean;
+  coins?: number;
+  analysisCredits?: number;
+  entitlements?: Record<string, boolean>;
+};
+
+export type SupporterRequest = {
+  _id?: string;
+  id?: string;
+  plan: string;
+  amount: number;
+  currency: string;
+  paymentMethod: string;
+  upiId?: string;
+  utr?: string;
+  bankReference?: string;
+  payerEmail?: string;
+  providerReference?: string;
+  paymentProofUrl?: string;
+  status: "pending" | "approved" | "rejected" | string;
+  rejectionReason?: string;
+  reviewedAt?: string;
+  expiresAt?: string;
+  paymentDate?: string;
+  note?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type PaymentIntent = {
+  _id?: string;
+  id?: string;
+  plan: string;
+  provider: string;
+  amount: number;
+  currency: string;
+  status: string;
+  reference: string;
+  providerCheckoutUrl?: string;
+  createdAt?: string;
+  expiresAt?: string;
+};
+
+export type ReferralDashboard = {
+  code: string;
+  linkPath: string;
+  stats: {
+    invitesSent: number;
+    joinedUsers: number;
+    verifiedReferrals: number;
+    rewardStatus: string;
+  };
+  rewards: { threshold: number; label: string; status: string }[];
+  referrals: {
+    id: string;
+    username: string;
+    joinedAt?: string;
+    status: string;
+    rewardStatus: string;
+    rewardNote: string;
+  }[];
+  user: {
+    username: string;
+    isSupporter: boolean;
+    adsDisabled: boolean;
+  };
+};
+
 export type PublicRoom = {
   key: string;
   title: string;

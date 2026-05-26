@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "expo-router";
 import { useEffect } from "react";
 import { Alert, Pressable, StyleSheet, Switch, View } from "react-native";
 import { AppText } from "@/components/AppText";
@@ -158,6 +159,26 @@ export default function SettingsScreen() {
 
       {mutation.isPending ? <AppText muted>Saving...</AppText> : null}
       <Card>
+        <AppText variant="subtitle">Billing and referrals</AppText>
+        <AppText muted>Supporter status, manual payment requests, entitlements, and referral rewards are managed from backend-driven mobile screens.</AppText>
+        <View style={styles.actionRow}>
+          <View style={styles.action}>
+            <Link href={"/billing" as never} asChild>
+              <Pressable>
+                <Button label="Billing" variant="secondary" />
+              </Pressable>
+            </Link>
+          </View>
+          <View style={styles.action}>
+            <Link href={"/referrals" as never} asChild>
+              <Pressable>
+                <Button label="Referrals" variant="secondary" />
+              </Pressable>
+            </Link>
+          </View>
+        </View>
+      </Card>
+      <Card>
         <AppText variant="subtitle">Network</AppText>
         <AppText muted>Production API and Socket.IO URLs are loaded from public Expo environment variables.</AppText>
       </Card>
@@ -202,5 +223,7 @@ const styles = StyleSheet.create({
   optionBlock: { gap: 8 },
   optionRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   option: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
-  optionActive: { borderWidth: 2 }
+  optionActive: { borderWidth: 2 },
+  actionRow: { flexDirection: "row", gap: 10 },
+  action: { flex: 1 }
 });
