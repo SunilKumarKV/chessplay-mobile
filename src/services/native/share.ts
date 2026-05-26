@@ -1,6 +1,6 @@
 import { Share } from "react-native";
 
-const WEB_ORIGIN = "https://getchessplay.com";
+const WEB_ORIGIN = "https://getchessplay.vercel.app";
 
 export function roomInviteUrl(roomId: string) {
   return `chessplay://room/${encodeURIComponent(roomId)}`;

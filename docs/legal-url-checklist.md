@@ -6,19 +6,19 @@ Store submission is blocked until the final public legal URLs are live and verif
 
 Verification attempt on May 26, 2026 returned no HTTP response from these configured URLs:
 
-- `https://getchessplay.com/privacy`
-- `https://getchessplay.com/terms`
-- `https://getchessplay.com/support/delete-account`
-- `https://getchessplay.com/support`
+- `https://getchessplay.vercel.app/privacy`
+- `https://getchessplay.vercel.app/terms`
+- `https://getchessplay.vercel.app/delete-account`
+- `https://getchessplay.vercel.app/support`
 
 ## Required Production URLs
 
 | Purpose | Required URL | Status |
 | --- | --- | --- |
-| Privacy Policy | `https://getchessplay.com/privacy` | Blocked until live |
-| Terms of Service | `https://getchessplay.com/terms` | Blocked until live |
-| Delete Account | `https://getchessplay.com/support/delete-account` | Blocked until live |
-| Contact/Support | `https://getchessplay.com/support` | Blocked until live |
+| Privacy Policy | `https://getchessplay.vercel.app/privacy` | Blocked until live |
+| Terms of Service | `https://getchessplay.vercel.app/terms` | Blocked until live |
+| Delete Account | `https://getchessplay.vercel.app/delete-account` | Blocked until live |
+| Contact/Support | `https://getchessplay.vercel.app/support` | Blocked until live |
 
 ## Page Requirements
 
@@ -33,10 +33,10 @@ Run:
 
 ```bash
 for url in \
-  https://getchessplay.com/privacy \
-  https://getchessplay.com/terms \
-  https://getchessplay.com/support/delete-account \
-  https://getchessplay.com/support
+  https://getchessplay.vercel.app/privacy \
+  https://getchessplay.vercel.app/terms \
+  https://getchessplay.vercel.app/delete-account \
+  https://getchessplay.vercel.app/support
 do
   curl -L -s -o /dev/null -w "%{http_code} %{url_effective}\n" "$url"
 done

@@ -89,7 +89,7 @@ Do not commit private auth tokens or server-side monitoring secrets.
 
 ## Remaining Native Release Blockers
 
-- Replace placeholder privacy/support/delete-account URLs with live production pages.
+- Keep legal/support URLs pointed at the live Vercel pages and re-check them before each store submission.
 - Add production error monitoring SDK wiring if required by release policy.
 - Implement server-side push delivery jobs if push notifications are part of the v1 launch.
 - Run physical-device QA on at least one Android phone and one iPhone before store submission.

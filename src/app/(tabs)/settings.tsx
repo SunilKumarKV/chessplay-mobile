@@ -267,10 +267,10 @@ export default function SettingsScreen() {
       <Card>
         <AppText variant="subtitle">Legal and account</AppText>
         <AppText muted>Privacy policy and account deletion requests must point to production support URLs before store submission.</AppText>
-        <Button label="Privacy policy" variant="secondary" onPress={() => Linking.openURL("https://getchessplay.com/privacy")} />
-        <Button label="Terms of service" variant="secondary" onPress={() => Linking.openURL("https://getchessplay.com/terms")} />
-        <Button label="Request account deletion" variant="secondary" onPress={() => Linking.openURL("https://getchessplay.com/support/delete-account")} />
-        <Button label="Contact support" variant="secondary" onPress={() => Linking.openURL("https://getchessplay.com/support")} />
+        <Button label="Privacy policy" variant="secondary" onPress={() => Linking.openURL("https://getchessplay.vercel.app/privacy")} />
+        <Button label="Terms of service" variant="secondary" onPress={() => Linking.openURL("https://getchessplay.vercel.app/terms")} />
+        <Button label="Request account deletion" variant="secondary" onPress={() => Linking.openURL("https://getchessplay.vercel.app/delete-account")} />
+        <Button label="Contact support" variant="secondary" onPress={() => Linking.openURL("https://getchessplay.vercel.app/support")} />
       </Card>
       <Button label="Log out" variant="danger" onPress={() => Alert.alert("Log out", "End this mobile session?", [{ text: "Cancel" }, { text: "Log out", onPress: logout }])} />
     </Screen>

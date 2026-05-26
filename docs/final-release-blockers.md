@@ -22,10 +22,10 @@ Do not start Play Store or App Store production builds until every blocker below
 Run these commands and confirm every response is successful, ideally `HTTP/2 200` or `HTTP/1.1 200 OK`.
 
 ```bash
-curl -I https://getchessplay.com/privacy
-curl -I https://getchessplay.com/terms
-curl -I https://getchessplay.com/delete-account
-curl -I https://getchessplay.com/support
+curl -I https://getchessplay.vercel.app/privacy
+curl -I https://getchessplay.vercel.app/terms
+curl -I https://getchessplay.vercel.app/delete-account
+curl -I https://getchessplay.vercel.app/support
 ```
 
 ## EAS Setup Commands

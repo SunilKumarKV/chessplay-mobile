@@ -10,7 +10,7 @@ import { TextField } from "@/components/TextField";
 import { billingApi } from "@/services/api/client";
 import { shareReferralInvite } from "@/services/native/share";
 
-const WEB_ORIGIN = "https://getchessplay.com";
+const WEB_ORIGIN = "https://getchessplay.vercel.app";
 
 export default function ReferralsScreen() {
   const [claimCode, setClaimCode] = useState("");
